@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import YandexMap from "@/components/YandexMap";
 import AddressInput from "@/components/AddressInput";
@@ -34,6 +34,25 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
   const [step, setStep] = useState<OrderStep>("form");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const [toast, setToast] = useState<{ text: string; sub?: string } | null>(null);
+
+  const showToast = (text: string, sub?: string) => {
+    setToast({ text, sub });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  useEffect(() => {
+    if (step === "found") {
+      showToast("Водитель найден!", "Едет к вам • ~3 мин");
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("A-Taxi", { body: "Водитель найден и едет к вам!", icon: "/favicon.svg" });
+      } else if ("Notification" in window && Notification.permission !== "denied") {
+        Notification.requestPermission().then((p) => {
+          if (p === "granted") new Notification("A-Taxi", { body: "Водитель найден и едет к вам!", icon: "/favicon.svg" });
+        });
+      }
+    }
+  }, [step]);
 
   const handleLocate = () => {
     if (!navigator.geolocation) return;
@@ -92,6 +111,27 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: "absolute", top: 16, left: 16, right: 16, zIndex: 200,
+          background: "#1C1F2A", border: "1px solid var(--taxi-yellow)",
+          borderRadius: 16, padding: "14px 16px",
+          display: "flex", alignItems: "center", gap: 12,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          animation: "fade-slide-up 0.3s ease",
+        }}>
+          <div style={{ width: 40, height: 40, background: "var(--taxi-yellow)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>🚕</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "#F0F2F5" }}>{toast.text}</div>
+            {toast.sub && <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 2 }}>{toast.sub}</div>}
+          </div>
+          <button onClick={() => setToast(null)} style={{ background: "none", border: "none", color: "var(--taxi-muted)", cursor: "pointer", padding: 4 }}>
+            <Icon name="X" size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Map */}
       <div style={{ flex: step === "form" ? "0 0 200px" : 1, position: "relative", overflow: "hidden", transition: "flex 0.4s" }}>
         <YandexMap fromAddress={from} toAddress={to} height="100%" />
