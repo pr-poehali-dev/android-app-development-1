@@ -31,6 +31,25 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
   const [comment, setComment] = useState("");
   const [step, setStep] = useState<OrderStep>("form");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
+
+  const handleLocate = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        if (window.ymaps) {
+          const res = await window.ymaps.geocode([latitude, longitude], { results: 1 }).catch(() => null);
+          const obj = res?.geoObjects.get(0);
+          if (obj) setFrom(obj.getAddressLine());
+        }
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { timeout: 8000 }
+    );
+  };
 
   const activeOrder = orders.find((o) => o.id === activeOrderId);
 
@@ -91,8 +110,15 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
           </div>
         )}
 
-        <button style={{ position: "absolute", right: 14, top: 14, width: 40, height: 40, background: "var(--taxi-card)", border: "1px solid var(--taxi-border)", borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}>
-          <Icon name="Locate" size={18} color="var(--taxi-yellow)" fallback="MapPin" />
+        <button
+          onClick={handleLocate}
+          disabled={locating}
+          style={{ position: "absolute", right: 14, top: 14, width: 40, height: 40, background: "var(--taxi-card)", border: "1px solid var(--taxi-border)", borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10, opacity: locating ? 0.6 : 1, transition: "opacity 0.2s" }}
+        >
+          {locating
+            ? <div style={{ width: 18, height: 18, border: "2px solid var(--taxi-border)", borderTop: "2px solid var(--taxi-yellow)", borderRadius: "50%", animation: "spin-slow 0.8s linear infinite" }} />
+            : <Icon name="Locate" size={18} color="var(--taxi-yellow)" fallback="MapPin" />
+          }
         </button>
       </div>
 
