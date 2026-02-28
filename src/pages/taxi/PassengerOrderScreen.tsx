@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import YandexMap from "@/components/YandexMap";
+import AddressInput from "@/components/AddressInput";
 import { Order, User, AppSettings } from "./types";
 
 interface Props {
@@ -110,14 +111,20 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
           <>
             {/* Address inputs */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-              <div style={{ position: "relative" }}>
-                <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", width: 9, height: 9, background: "var(--taxi-green)", borderRadius: "50%" }} />
-                <input className="taxi-input" style={{ paddingLeft: 34 }} placeholder="Откуда едем?" value={from} onChange={(e) => setFrom(e.target.value)} />
-              </div>
-              <div style={{ position: "relative" }}>
-                <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", width: 9, height: 9, background: "var(--taxi-yellow)", borderRadius: 2 }} />
-                <input className="taxi-input" style={{ paddingLeft: 34 }} placeholder="Куда едем?" value={to} onChange={(e) => setTo(e.target.value)} />
-              </div>
+              <AddressInput
+                value={from}
+                onChange={setFrom}
+                placeholder="Откуда едем?"
+                dotColor="var(--taxi-green)"
+                dotRadius={50}
+              />
+              <AddressInput
+                value={to}
+                onChange={setTo}
+                placeholder="Куда едем?"
+                dotColor="var(--taxi-yellow)"
+                dotRadius={2}
+              />
             </div>
 
             {/* Tariffs */}
