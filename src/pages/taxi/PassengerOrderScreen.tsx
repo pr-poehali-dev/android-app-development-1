@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import YandexMap from "@/components/YandexMap";
 import { Order, User, AppSettings } from "./types";
 
 interface Props {
@@ -70,11 +71,8 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
       {/* Map */}
-      <div className="map-bg" style={{ flex: step === "form" ? "0 0 160px" : 1, position: "relative", overflow: "hidden", transition: "flex 0.4s" }}>
-        <div className="map-road" style={{ width: 3, height: "100%", left: "25%", top: 0, opacity: 0.5 }} />
-        <div className="map-road" style={{ width: 3, height: "100%", left: "60%", top: 0, opacity: 0.4 }} />
-        <div className="map-road" style={{ height: 3, width: "100%", top: "45%", left: 0, opacity: 0.5 }} />
-        <div className="map-road" style={{ height: 3, width: "100%", top: "70%", left: 0, opacity: 0.3 }} />
+      <div style={{ flex: step === "form" ? "0 0 200px" : 1, position: "relative", overflow: "hidden", transition: "flex 0.4s" }}>
+        <YandexMap fromAddress={from} toAddress={to} height="100%" />
 
         {step === "searching" && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, background: "rgba(13,15,20,0.75)", backdropFilter: "blur(4px)" }}>
@@ -92,15 +90,7 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
           </div>
         )}
 
-        {step === "form" && (
-          <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-            <div style={{ width: 36, height: 36, background: "var(--taxi-yellow)", borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(255,204,0,0.4)" }}>
-              <span style={{ transform: "rotate(45deg)", fontSize: 16 }}>📍</span>
-            </div>
-          </div>
-        )}
-
-        <button style={{ position: "absolute", right: 14, top: 14, width: 40, height: 40, background: "var(--taxi-card)", border: "1px solid var(--taxi-border)", borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+        <button style={{ position: "absolute", right: 14, top: 14, width: 40, height: 40, background: "var(--taxi-card)", border: "1px solid var(--taxi-border)", borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}>
           <Icon name="Locate" size={18} color="var(--taxi-yellow)" fallback="MapPin" />
         </button>
       </div>
