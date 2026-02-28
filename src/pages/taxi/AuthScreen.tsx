@@ -65,11 +65,11 @@ export default function AuthScreen({ onAuth }: Props) {
         <div className="map-road" style={{ height: 2, width: "100%", top: "70%", left: 0, opacity: 0.3 }} />
         <div className="flex flex-col items-center gap-3 animate-fade-slide-up" style={{ zIndex: 1 }}>
           <div className="animate-pulse-glow" style={{ width: 60, height: 60, background: "var(--taxi-yellow)", borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 28 }}>🚖</span>
+            <span style={{ fontFamily: "Montserrat", fontWeight: 900, fontSize: 34, color: "#0D0F14", lineHeight: 1 }}>A</span>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: "Montserrat", fontWeight: 900, fontSize: 24, color: "#F0F2F5" }}>
-              TAXI<span style={{ color: "var(--taxi-yellow)" }}>GO</span>
+              A-<span style={{ color: "var(--taxi-yellow)" }}>Taxi</span>
             </div>
             <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginTop: 2 }}>Быстро. Надёжно. Везде.</div>
           </div>
