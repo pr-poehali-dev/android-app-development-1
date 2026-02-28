@@ -25,11 +25,19 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [tab, setTab] = useState<PassengerTab>("order");
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [repeatFrom, setRepeatFrom] = useState("");
+  const [repeatTo, setRepeatTo] = useState("");
   const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
   const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
 
   const handleAuth = (u: User) => setUser(u);
   const handleLogout = () => { setUser(null); setTab("order"); };
+
+  const handleRepeat = (from: string, to: string) => {
+    setRepeatFrom(from);
+    setRepeatTo(to);
+    setTab("order");
+  };
 
   const handleOrderCreate = (order: Order) => setOrders((prev) => [...prev, order]);
   const handleOrderCancel = (id: string) =>
@@ -114,9 +122,16 @@ export default function App() {
                   settings={settings}
                   onOrderCreate={handleOrderCreate}
                   onOrderCancel={handleOrderCancel}
+                  initialFrom={repeatFrom}
+                  initialTo={repeatTo}
                 />
               )}
-              {tab === "history" && <HistoryScreen />}
+              {tab === "history" && (
+                <HistoryScreen
+                  orders={orders.filter((o) => o.passengerId === user.id)}
+                  onRepeat={handleRepeat}
+                />
+              )}
               {tab === "profile" && <ProfileScreen onLogout={handleLogout} />}
               {tab === "support" && <SupportScreen />}
 

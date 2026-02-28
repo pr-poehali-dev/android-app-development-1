@@ -10,6 +10,8 @@ interface Props {
   settings: AppSettings;
   onOrderCreate: (order: Order) => void;
   onOrderCancel: (id: string) => void;
+  initialFrom?: string;
+  initialTo?: string;
 }
 
 const TARIFFS = [
@@ -21,9 +23,9 @@ const TARIFFS = [
 
 type OrderStep = "form" | "searching" | "found";
 
-export default function PassengerOrderScreen({ user, orders, settings, onOrderCreate, onOrderCancel }: Props) {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+export default function PassengerOrderScreen({ user, orders, settings, onOrderCreate, onOrderCancel, initialFrom = "", initialTo = "" }: Props) {
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(initialTo);
   const [tariff, setTariff] = useState<"economy" | "comfort" | "business" | "hourly">("economy");
   const [children, setChildren] = useState(false);
   const [childrenCount, setChildrenCount] = useState(1);
