@@ -10,6 +10,7 @@ interface Props {
   settings: AppSettings;
   onOrderCreate: (order: Order) => void;
   onOrderCancel: (id: string) => void;
+  onRateDriver?: (driverId: string, rating: number) => void;
   initialFrom?: string;
   initialTo?: string;
 }
@@ -21,9 +22,9 @@ const TARIFFS = [
   { id: "hourly" as const, name: "Почасовой", icon: "⏱️", time: "10 мин", baseKm: 0 },
 ];
 
-type OrderStep = "form" | "searching" | "found";
+type OrderStep = "form" | "searching" | "found" | "rating";
 
-export default function PassengerOrderScreen({ user, orders, settings, onOrderCreate, onOrderCancel, initialFrom = "", initialTo = "" }: Props) {
+export default function PassengerOrderScreen({ user, orders, settings, onOrderCreate, onOrderCancel, onRateDriver, initialFrom = "", initialTo = "" }: Props) {
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
   const [tariff, setTariff] = useState<"economy" | "comfort" | "business" | "hourly">("economy");
@@ -35,6 +36,8 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [toast, setToast] = useState<{ text: string; sub?: string } | null>(null);
+  const [hoverStar, setHoverStar] = useState(0);
+  const [selectedStar, setSelectedStar] = useState(0);
 
   const showToast = (text: string, sub?: string) => {
     setToast({ text, sub });
@@ -99,6 +102,7 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
     setActiveOrderId(order.id);
     setStep("searching");
     setTimeout(() => setStep("found"), 3000);
+    setTimeout(() => setStep("rating"), 9000);
   };
 
   const handleCancel = () => {
@@ -107,6 +111,19 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
     setStep("form");
     setFrom(""); setTo(""); setComment("");
     setChildren(false); setLuggage(false);
+    setSelectedStar(0);
+  };
+
+  const handleRate = (stars: number) => {
+    if (activeOrder?.driverId && onRateDriver) {
+      onRateDriver(activeOrder.driverId, stars);
+    }
+    setStep("form");
+    setActiveOrderId(null);
+    setFrom(""); setTo(""); setComment("");
+    setChildren(false); setLuggage(false);
+    setSelectedStar(0);
+    showToast("Спасибо за оценку!", "Это помогает улучшать сервис");
   };
 
   return (
@@ -163,6 +180,54 @@ export default function PassengerOrderScreen({ user, orders, settings, onOrderCr
           }
         </button>
       </div>
+
+      {/* Rating screen */}
+      {step === "rating" && activeOrder && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 50, background: "var(--taxi-dark)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32 }} className="animate-fade-slide-up">
+          <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+          <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 22, color: "#F0F2F5", marginBottom: 6, textAlign: "center" }}>Поездка завершена!</div>
+          <div style={{ fontSize: 14, color: "var(--taxi-muted)", marginBottom: 8, textAlign: "center" }}>
+            {activeOrder.from} → {activeOrder.to}
+          </div>
+          <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 28, color: "var(--taxi-yellow)", marginBottom: 28 }}>{activeOrder.price} ₽</div>
+
+          <div style={{ width: "100%", background: "#1C1F2A", borderRadius: 20, padding: "24px 20px", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 48, height: 48, background: "var(--taxi-surface)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>👨</div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 15, color: "#F0F2F5" }}>{activeOrder.driverName ?? "Водитель"}</div>
+                <div style={{ fontSize: 12, color: "var(--taxi-muted)" }}>Оцените поездку</div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 20 }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onMouseEnter={() => setHoverStar(star)}
+                  onMouseLeave={() => setHoverStar(0)}
+                  onClick={() => setSelectedStar(star)}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 40, lineHeight: 1, transition: "transform 0.15s", transform: (hoverStar || selectedStar) >= star ? "scale(1.2)" : "scale(1)", color: (hoverStar || selectedStar) >= star ? "#FFCC00" : "#3A4155" }}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => handleRate(selectedStar || 5)}
+              className="btn-yellow"
+              style={{ opacity: selectedStar > 0 ? 1 : 0.6 }}
+            >
+              {selectedStar > 0 ? `Отправить оценку ${selectedStar} ★` : "Пропустить"}
+            </button>
+          </div>
+
+          <button onClick={() => handleRate(0)} style={{ background: "none", border: "none", color: "var(--taxi-muted)", fontSize: 13, cursor: "pointer", fontFamily: "Golos Text" }}>
+            Пропустить
+          </button>
+        </div>
+      )}
 
       {/* Bottom panel */}
       <div className="bottom-sheet" style={{ paddingBottom: 88, overflowY: "auto", maxHeight: step === "form" ? "none" : 260 }}>

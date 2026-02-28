@@ -48,6 +48,16 @@ export default function App() {
     setDrivers((prev) => prev.map((d) => d.id === driverId ? { ...d, autoAssign: !d.autoAssign } : d));
   const handleUpdateDriver = (id: string, changes: Partial<Driver>) =>
     setDrivers((prev) => prev.map((d) => d.id === id ? { ...d, ...changes } : d));
+
+  const handleRateDriver = (driverId: string, rating: number) => {
+    if (rating === 0) return;
+    setDrivers((prev) => prev.map((d) => {
+      if (d.id !== driverId) return d;
+      const totalRating = d.rating * d.tripsCount + rating;
+      const newCount = d.tripsCount + 1;
+      return { ...d, rating: Math.round((totalRating / newCount) * 10) / 10, tripsCount: newCount };
+    }));
+  };
   const handleDeleteDriver = (id: string) =>
     setDrivers((prev) => prev.filter((d) => d.id !== id));
 
@@ -122,6 +132,7 @@ export default function App() {
                   settings={settings}
                   onOrderCreate={handleOrderCreate}
                   onOrderCancel={handleOrderCancel}
+                  onRateDriver={handleRateDriver}
                   initialFrom={repeatFrom}
                   initialTo={repeatTo}
                 />

@@ -150,8 +150,14 @@ export default function AdminScreen({ drivers, orders, settings, onUpdateSetting
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                  <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>★ {driver.rating}</span>
+                <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                  <span style={{
+                    fontSize: 12, padding: "4px 10px", borderRadius: 8, fontWeight: 700, fontFamily: "Montserrat",
+                    background: driver.rating >= 4.5 ? "rgba(34,197,94,0.15)" : driver.rating >= 3.5 ? "rgba(255,204,0,0.15)" : "rgba(239,68,68,0.15)",
+                    color: driver.rating >= 4.5 ? "var(--taxi-green)" : driver.rating >= 3.5 ? "var(--taxi-yellow)" : "var(--taxi-red)",
+                  }}>
+                    {"★".repeat(Math.round(driver.rating))}{"☆".repeat(5 - Math.round(driver.rating))} {driver.rating.toFixed(1)}
+                  </span>
                   <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>🚗 {driver.tripsCount} поездок</span>
                   <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>📍 {driver.distanceKm} км</span>
                 </div>
