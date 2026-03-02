@@ -3,7 +3,6 @@ import AuthScreen from "./pages/taxi/AuthScreen";
 import PassengerOrderScreen from "./pages/taxi/PassengerOrderScreen";
 import HistoryScreen from "./pages/taxi/HistoryScreen";
 import ProfileScreen from "./pages/taxi/ProfileScreen";
-import SupportScreen from "./pages/taxi/SupportScreen";
 import DriverScreen from "./pages/taxi/DriverScreen";
 import AdminScreen from "./pages/taxi/AdminScreen";
 import Icon from "@/components/ui/icon";
@@ -12,13 +11,12 @@ import {
   INITIAL_DRIVERS, INITIAL_ORDERS, INITIAL_SETTINGS,
 } from "./pages/taxi/types";
 
-type PassengerTab = "order" | "history" | "profile" | "support";
+type PassengerTab = "profile" | "order" | "history";
 
 const PASSENGER_NAV = [
-  { id: "order", label: "Поездка", icon: "Car" },
-  { id: "history", label: "История", icon: "Clock" },
   { id: "profile", label: "Профиль", icon: "User" },
-  { id: "support", label: "Помощь", icon: "MessageCircle" },
+  { id: "order", label: "Заказ", icon: "Car" },
+  { id: "history", label: "История", icon: "Clock" },
 ] as const;
 
 export default function App() {
@@ -61,7 +59,10 @@ export default function App() {
   const handleDeleteDriver = (id: string) =>
     setDrivers((prev) => prev.filter((d) => d.id !== id));
 
-  const currentDriver = user?.role === "driver" ? (drivers.find((d) => d.id === "d1") ?? drivers[0]) : null;
+  const handleUpdateOrderStatus = (orderId: string, status: Order["status"]) =>
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o));
+
+  const currentDriver = user?.role === "driver" ? drivers.find((d) => d.id === user.id) ?? drivers[0] : null;
 
   return (
     <div
@@ -74,7 +75,6 @@ export default function App() {
       </div>
 
       <div className="phone-frame relative">
-        {/* Status Bar */}
         <div className="status-bar">
           <span style={{ fontFamily: "Montserrat", fontWeight: 600, fontSize: 14, color: "#F0F2F5" }}>9:41</span>
           <div className="flex items-center gap-2">
@@ -94,10 +94,9 @@ export default function App() {
           </div>
         </div>
 
-        {/* Screen */}
         <div style={{ height: "calc(844px - 44px)", overflow: "hidden", position: "relative" }}>
           {!user ? (
-            <AuthScreen onAuth={handleAuth} />
+            <AuthScreen onAuth={handleAuth} drivers={drivers} />
 
           ) : user.role === "admin" ? (
             <div style={{ height: "100%", overflowY: "auto" }}>
@@ -120,16 +119,19 @@ export default function App() {
                 settings={settings}
                 onAcceptOrder={handleAcceptOrder}
                 onToggleAutoAssign={handleToggleAutoAssign}
+                onUpdateOrderStatus={handleUpdateOrderStatus}
               />
             </div>
 
           ) : (
             <>
+              {tab === "profile" && <ProfileScreen user={user} onLogout={handleLogout} />}
               {tab === "order" && (
                 <PassengerOrderScreen
                   user={user}
                   orders={orders}
                   settings={settings}
+                  drivers={drivers}
                   onOrderCreate={handleOrderCreate}
                   onOrderCancel={handleOrderCancel}
                   onRateDriver={handleRateDriver}
@@ -143,8 +145,6 @@ export default function App() {
                   onRepeat={handleRepeat}
                 />
               )}
-              {tab === "profile" && <ProfileScreen onLogout={handleLogout} />}
-              {tab === "support" && <SupportScreen />}
 
               <div className="nav-bar">
                 {PASSENGER_NAV.map((item) => (

@@ -39,7 +39,7 @@ export default function AdminScreen({ drivers, orders, settings, onUpdateSetting
             <h1 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 22, color: "#F0F2F5", marginBottom: 2 }}>
               Администратор
             </h1>
-            <div style={{ fontSize: 12, color: "var(--taxi-muted)" }}>Панель управления TAXIGO</div>
+            <div style={{ fontSize: 12, color: "var(--taxi-muted)" }}>Панель управления Sovyonok Tax</div>
           </div>
           <button onClick={onLogout}
             style={{ padding: "8px 14px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12, color: "var(--taxi-red)", fontSize: 13, cursor: "pointer", fontFamily: "Golos Text", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
@@ -85,10 +85,10 @@ export default function AdminScreen({ drivers, orders, settings, onUpdateSetting
 
             {/* Current orders */}
             <div style={{ fontSize: 11, color: "var(--taxi-muted)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>Активные заказы</div>
-            {orders.filter((o) => o.status === "pending" || o.status === "assigned").length === 0 ? (
+            {orders.filter((o) => o.status === "pending" || o.status === "assigned" || o.status === "arrived" || o.status === "inprogress").length === 0 ? (
               <div className="taxi-card" style={{ textAlign: "center", padding: "20px", color: "var(--taxi-muted)", fontSize: 13 }}>Нет активных заказов</div>
             ) : (
-              orders.filter((o) => o.status === "pending" || o.status === "assigned").map((order, idx) => (
+              orders.filter((o) => o.status === "pending" || o.status === "assigned" || o.status === "arrived" || o.status === "inprogress").map((order, idx) => (
                 <div key={order.id} className="taxi-card animate-fade-slide-up" style={{ marginBottom: 8, animationDelay: `${idx * 0.06}s` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ flex: 1 }}>
@@ -98,8 +98,8 @@ export default function AdminScreen({ drivers, orders, settings, onUpdateSetting
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                       <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "var(--taxi-yellow)" }}>{order.price} ₽</div>
-                      <div style={{ fontSize: 10, padding: "2px 7px", borderRadius: 6, background: order.status === "pending" ? "rgba(255,204,0,0.15)" : "rgba(34,197,94,0.15)", color: order.status === "pending" ? "var(--taxi-yellow)" : "var(--taxi-green)" }}>
-                        {order.status === "pending" ? "Ожидает" : "Назначен"}
+                      <div style={{ fontSize: 10, padding: "2px 7px", borderRadius: 6, background: order.status === "pending" ? "rgba(255,204,0,0.15)" : order.status === "inprogress" ? "rgba(96,165,250,0.15)" : "rgba(34,197,94,0.15)", color: order.status === "pending" ? "var(--taxi-yellow)" : order.status === "inprogress" ? "#60A5FA" : "var(--taxi-green)" }}>
+                        {order.status === "pending" ? "Ожидает" : order.status === "assigned" ? "Назначен" : order.status === "arrived" ? "На месте" : "В пути"}
                       </div>
                     </div>
                   </div>
@@ -113,9 +113,10 @@ export default function AdminScreen({ drivers, orders, settings, onUpdateSetting
               {[
                 { label: "Стоимость за км", value: `${settings.pricePerKm} ₽` },
                 { label: "Почасовой тариф", value: `${settings.pricePerHour} ₽/ч` },
+                { label: "Доставка", value: `${settings.priceDelivery} ₽` },
                 { label: "Радиус авто-назначения", value: `${settings.autoAssignRadiusKm} км` },
               ].map((row, i) => (
-                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < 2 ? "1px solid var(--taxi-border)" : "none" }}>
+                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < 3 ? "1px solid var(--taxi-border)" : "none" }}>
                   <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{row.label}</span>
                   <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>{row.value}</span>
                 </div>
@@ -243,6 +244,28 @@ export default function AdminScreen({ drivers, orders, settings, onUpdateSetting
                 </div>
               </div>
 
+              {/* Delivery price */}
+              <div className="taxi-card">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 38, height: 38, background: "rgba(255,204,0,0.15)", borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📦</div>
+                  <div>
+                    <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 600 }}>Тариф доставки</div>
+                    <div style={{ fontSize: 11, color: "var(--taxi-muted)" }}>Фиксированная стоимость доставки</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <input type="range" min={100} max={1000} step={50} value={localSettings.priceDelivery}
+                    onChange={(e) => setLocalSettings({ ...localSettings, priceDelivery: Number(e.target.value) })}
+                    style={{ flex: 1, accentColor: "var(--taxi-yellow)" }} />
+                  <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "var(--taxi-yellow)", minWidth: 80, textAlign: "right" }}>
+                    {localSettings.priceDelivery} ₽
+                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--taxi-muted)", marginTop: 4 }}>
+                  <span>100 ₽</span><span>1000 ₽</span>
+                </div>
+              </div>
+
               {/* Auto-assign radius */}
               <div className="taxi-card">
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -269,14 +292,13 @@ export default function AdminScreen({ drivers, orders, settings, onUpdateSetting
               <div className="taxi-card" style={{ background: "rgba(255,204,0,0.05)", border: "1px solid rgba(255,204,0,0.2)" }}>
                 <div style={{ fontSize: 12, color: "var(--taxi-yellow)", marginBottom: 10, fontWeight: 600 }}>📊 Примерный расчёт поездки 10 км</div>
                 {[
-                  { name: "Эконом", price: Math.round(10 * localSettings.pricePerKm) },
-                  { name: "Комфорт", price: Math.round(10 * localSettings.pricePerKm + 8) },
-                  { name: "Бизнес", price: Math.round(10 * localSettings.pricePerKm + 18) },
-                  { name: "Почасовой", price: localSettings.pricePerHour },
-                ].map((t) => (
-                  <div key={t.name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--taxi-border)" }}>
+                  { name: "Эконом (10 км)", price: Math.round(10 * localSettings.pricePerKm), suffix: "" },
+                  { name: "Почасовой", price: localSettings.pricePerHour, suffix: "/ч" },
+                  { name: "Доставка", price: localSettings.priceDelivery, suffix: "" },
+                ].map((t, i) => (
+                  <div key={t.name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < 2 ? "1px solid var(--taxi-border)" : "none" }}>
                     <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{t.name}</span>
-                    <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 13, color: "#F0F2F5" }}>{t.price} ₽{t.name === "Почасовой" ? "/ч" : ""}</span>
+                    <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 13, color: "#F0F2F5" }}>{t.price} ₽{t.suffix}</span>
                   </div>
                 ))}
               </div>
