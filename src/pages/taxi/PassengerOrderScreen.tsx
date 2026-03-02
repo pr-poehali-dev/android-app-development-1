@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import YandexMap from "@/components/YandexMap";
 import AddressInput from "@/components/AddressInput";
-import { Order, User, AppSettings, Driver, LOGO_URL } from "./types";
+import { Order, User, AppSettings, Driver, LOGO_URL, PaymentMethod } from "./types";
 
 interface Props {
   user: User;
@@ -44,6 +44,8 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
   const [chatMessages, setChatMessages] = useState<{from: string; text: string}[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [etaMinutes, setEtaMinutes] = useState(5);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [tips, setTips] = useState(0);
 
   const showToast = (text: string, sub?: string) => {
     setToast({ text, sub });
@@ -111,13 +113,15 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
         deliveryDescription: tariff === "delivery" ? deliveryWhat : undefined,
       },
       status: "pending",
+      paymentMethod,
+      tips,
       price: calcPrice(),
       createdAt: new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" }),
+      freeAt: Date.now(),
     };
     onOrderCreate(order);
     setActiveOrderId(order.id);
     setStep("searching");
-    const assignedDriverData = drivers.find(d => d.status === "active");
     setTimeout(() => {
       setStep("found");
     }, 3000);
@@ -138,6 +142,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     setChildren(false); setLuggage(false);
     setSelectedStar(0); setHoverStar(0);
     setChatOpen(false); setChatMessages([]);
+    setPaymentMethod("cash"); setTips(0);
   };
 
   const handleRate = (stars: number) => {
@@ -254,11 +259,30 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
 
         {step === "searching" && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "rgba(13,15,20,0.8)", backdropFilter: "blur(4px)" }}>
-            <div className="taxi-card" style={{ padding: 20, textAlign: "center", maxWidth: 280 }}>
+            <div className="taxi-card" style={{ padding: 20, textAlign: "center", maxWidth: 300 }}>
               <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginBottom: 8 }}>
                 {isDelivery ? `Доставка: ${deliveryAddress}` : `${from} → ${to}`}
               </div>
-              <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 18, color: "var(--taxi-yellow)" }}>{calcPrice()} ₽</div>
+              <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 18, color: "var(--taxi-yellow)", marginBottom: 12 }}>{calcPrice()} ₽</div>
+              <div style={{ borderTop: "1px solid var(--taxi-border)", paddingTop: 12 }}>
+                <div style={{ fontSize: 11, color: "var(--taxi-muted)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Чаевые водителю</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={999999}
+                    value={tips || ""}
+                    onChange={(e) => setTips(Math.min(999999, Math.max(0, parseInt(e.target.value) || 0)))}
+                    placeholder="0"
+                    className="taxi-input"
+                    style={{ width: 100, textAlign: "center", fontFamily: "Montserrat", fontWeight: 700, fontSize: 16 }}
+                  />
+                  <span style={{ fontSize: 14, color: "var(--taxi-muted)" }}>₽</span>
+                </div>
+                {tips > 0 && (
+                  <div style={{ fontSize: 12, color: "var(--taxi-green)", marginTop: 6 }}>+{tips} ₽ чаевые</div>
+                )}
+              </div>
             </div>
             <div style={{ width: 64, height: 64, border: "3px solid var(--taxi-border)", borderTop: "3px solid var(--taxi-yellow)", borderRadius: "50%", animation: "spin-slow 1s linear infinite" }} />
             <div style={{ color: "#F0F2F5", fontFamily: "Montserrat", fontWeight: 600, fontSize: 15 }}>Ищем водителя...</div>
@@ -429,6 +453,24 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
               <input className="taxi-input" placeholder="Комментарий к заказу" value={comment} onChange={(e) => setComment(e.target.value)} style={{ marginBottom: 14 }} />
             </>
           )}
+
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "var(--taxi-muted)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Способ оплаты</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {([{ id: "cash" as const, label: "💵 Наличные" }, { id: "transfer" as const, label: "📱 Перевод" }]).map((pm) => (
+                <button key={pm.id} onClick={() => setPaymentMethod(pm.id)}
+                  style={{
+                    flex: 1, padding: "10px 12px", borderRadius: 14, fontSize: 13, cursor: "pointer", fontFamily: "Golos Text", fontWeight: 500,
+                    background: paymentMethod === pm.id ? "rgba(255,204,0,0.15)" : "var(--taxi-surface)",
+                    border: `1.5px solid ${paymentMethod === pm.id ? "var(--taxi-yellow)" : "var(--taxi-border)"}`,
+                    color: paymentMethod === pm.id ? "var(--taxi-yellow)" : "var(--taxi-muted)",
+                    transition: "all 0.2s",
+                  }}>
+                  {pm.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Стоимость:</div>

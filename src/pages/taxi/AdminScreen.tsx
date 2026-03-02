@@ -115,8 +115,9 @@ export default function AdminScreen({ drivers, orders, settings, onUpdateSetting
                 { label: "Почасовой тариф", value: `${settings.pricePerHour} ₽/ч` },
                 { label: "Доставка", value: `${settings.priceDelivery} ₽` },
                 { label: "Радиус авто-назначения", value: `${settings.autoAssignRadiusKm} км` },
+                { label: "Свободный заказ через", value: `${settings.freeOrderTimeoutMs / 60000} мин` },
               ].map((row, i) => (
-                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < 3 ? "1px solid var(--taxi-border)" : "none" }}>
+                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < 4 ? "1px solid var(--taxi-border)" : "none" }}>
                   <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{row.label}</span>
                   <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>{row.value}</span>
                 </div>
@@ -161,6 +162,18 @@ export default function AdminScreen({ drivers, orders, settings, onUpdateSetting
                   </span>
                   <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>🚗 {driver.tripsCount} поездок</span>
                   <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>📍 {driver.distanceKm} км</span>
+                  <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>📊 За 24ч: {driver.tripsLast24h}</span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "8px 12px", background: "var(--taxi-surface)", borderRadius: 10 }}>
+                  <span style={{ fontSize: 12, color: "var(--taxi-muted)" }}>Приоритет авто-назначения:</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button onClick={() => onUpdateDriver(driver.id, { priority: Math.max(1, (driver.priority || 1) - 1) })}
+                      style={{ width: 26, height: 26, borderRadius: 6, background: "var(--taxi-card)", border: "1px solid var(--taxi-border)", color: "#F0F2F5", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                    <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "var(--taxi-yellow)", minWidth: 20, textAlign: "center" }}>{driver.priority || 1}</span>
+                    <button onClick={() => onUpdateDriver(driver.id, { priority: Math.min(10, (driver.priority || 1) + 1) })}
+                      style={{ width: 26, height: 26, borderRadius: 6, background: "var(--taxi-card)", border: "1px solid var(--taxi-border)", color: "#F0F2F5", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                  </div>
                 </div>
 
                 {confirmDelete === driver.id ? (
@@ -285,6 +298,27 @@ export default function AdminScreen({ drivers, orders, settings, onUpdateSetting
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--taxi-muted)", marginTop: 4 }}>
                   <span>1 км</span><span>30 км</span>
+                </div>
+              </div>
+
+              <div className="taxi-card">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 38, height: 38, background: "rgba(255,204,0,0.15)", borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⏳</div>
+                  <div>
+                    <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 600 }}>Свободный заказ через</div>
+                    <div style={{ fontSize: 11, color: "var(--taxi-muted)" }}>Время до попадания в свободные</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <input type="range" min={1} max={10} step={1} value={localSettings.freeOrderTimeoutMs / 60000}
+                    onChange={(e) => setLocalSettings({ ...localSettings, freeOrderTimeoutMs: Number(e.target.value) * 60000 })}
+                    style={{ flex: 1, accentColor: "var(--taxi-yellow)" }} />
+                  <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "var(--taxi-yellow)", minWidth: 70, textAlign: "right" }}>
+                    {localSettings.freeOrderTimeoutMs / 60000} мин
+                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--taxi-muted)", marginTop: 4 }}>
+                  <span>1 мин</span><span>10 мин</span>
                 </div>
               </div>
 

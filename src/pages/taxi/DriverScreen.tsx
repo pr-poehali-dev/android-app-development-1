@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
-import { Order, Driver, AppSettings } from "./types";
+import { Order, Driver, AppSettings, DriverCarInfo, LOGO_URL } from "./types";
 
 const TARIFF_LABELS: Record<Order["tariff"], string> = {
   economy: "Эконом",
@@ -8,116 +8,606 @@ const TARIFF_LABELS: Record<Order["tariff"], string> = {
   delivery: "Доставка",
 };
 
+const PAYMENT_LABELS: Record<string, string> = {
+  cash: "💵 Наличные",
+  transfer: "📱 Перевод",
+};
+
 interface Props {
   driver: Driver;
   orders: Order[];
   settings: AppSettings;
-  onAcceptOrder: (orderId: string, driverId: string, driverName: string) => void;
+  onAcceptOrder: (orderId: string, driverId: string, driverName: string, eta: number) => void;
   onToggleAutoAssign: (driverId: string) => void;
   onUpdateOrderStatus: (orderId: string, status: Order["status"]) => void;
+  onUpdateDriverCar: (driverId: string, carInfo: DriverCarInfo) => void;
+  onLogout: () => void;
 }
 
-type DriverTab = "active" | "free";
+type DriverTab = "profile" | "orders" | "history";
 
-export default function DriverScreen({ driver, orders, settings, onAcceptOrder, onToggleAutoAssign, onUpdateOrderStatus }: Props) {
-  const [tab, setTab] = useState<DriverTab>("active");
+const NAV_ITEMS = [
+  { id: "profile" as const, label: "Профиль", icon: "User" },
+  { id: "orders" as const, label: "Заказы", icon: "ClipboardList" },
+  { id: "history" as const, label: "История", icon: "Clock" },
+];
 
-  const myOrder = orders.find((o) => o.driverId === driver.id && o.status !== "done" && o.status !== "cancelled");
-  const freeOrders = orders.filter((o) => o.status === "pending");
+export default function DriverScreen({
+  driver, orders, settings,
+  onAcceptOrder, onToggleAutoAssign, onUpdateOrderStatus,
+  onUpdateDriverCar, onLogout,
+}: Props) {
+  const [tab, setTab] = useState<DriverTab>("profile");
+  const [editingCar, setEditingCar] = useState(false);
+  const [carBrand, setCarBrand] = useState(driver.carInfo.brand);
+  const [carModel, setCarModel] = useState(driver.carInfo.model);
+  const [carPlate, setCarPlate] = useState(driver.carInfo.plateNumber);
+  const [etaSelect, setEtaSelect] = useState<{ orderId: string } | null>(null);
+  const [activeView, setActiveView] = useState<"ride" | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<{ from: string; text: string }[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [autoAssignOffer, setAutoAssignOffer] = useState<Order | null>(null);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportMessages, setSupportMessages] = useState<{ from: string; text: string; time: string }[]>([
+    { from: "admin", text: "Здравствуйте! Чем могу помочь?", time: "сейчас" },
+  ]);
+  const [supportInput, setSupportInput] = useState("");
+
+  const myOrder = orders.find(
+    (o) => o.driverId === driver.id && !["done", "cancelled"].includes(o.status)
+  );
+
+  const now = Date.now();
+  const freeOrders = orders
+    .filter((o) => o.status === "pending" && o.freeAt && now - o.freeAt >= settings.freeOrderTimeoutMs)
+    .sort((a, b) => (a.freeAt ?? 0) - (b.freeAt ?? 0));
+
   const isRestricted = driver.status === "restricted";
+  const carFilled = driver.carInfo.brand && driver.carInfo.model && driver.carInfo.plateNumber;
 
-  return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
-      {/* Header */}
-      <div style={{ padding: "20px 24px 0" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+  const playSound = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = "sine";
+      gain.gain.value = 0.3;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+      setTimeout(() => {
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.frequency.value = 1100;
+        osc2.type = "sine";
+        gain2.gain.value = 0.3;
+        osc2.start();
+        osc2.stop(ctx.currentTime + 0.3);
+      }, 300);
+    } catch (_e) { void _e; }
+  }, []);
+
+  useEffect(() => {
+    if (!driver.autoAssign || isRestricted || myOrder || !carFilled) return;
+    const pendingOrders = orders.filter(
+      (o) => o.status === "pending" && !o.driverId
+    );
+    if (pendingOrders.length > 0 && !autoAssignOffer) {
+      const nearest = pendingOrders.sort(
+        (a, b) => (driver.distanceKm) - (driver.distanceKm)
+      )[0];
+      setAutoAssignOffer(nearest);
+      playSound();
+    }
+  }, [orders, driver.autoAssign, isRestricted, myOrder, carFilled, autoAssignOffer, driver.distanceKm, playSound]);
+
+  const handleSaveCar = () => {
+    if (!carBrand.trim() || !carModel.trim() || !carPlate.trim()) return;
+    onUpdateDriverCar(driver.id, {
+      brand: carBrand.trim(),
+      model: carModel.trim(),
+      plateNumber: carPlate.trim(),
+    });
+    setEditingCar(false);
+  };
+
+  const handleAcceptFromEta = (orderId: string, eta: number) => {
+    onAcceptOrder(orderId, driver.id, driver.name, eta);
+    setEtaSelect(null);
+    setActiveView("ride");
+    setAutoAssignOffer(null);
+  };
+
+  const handleDeclineAutoAssign = () => {
+    setAutoAssignOffer(null);
+  };
+
+  const sendChatMessage = () => {
+    if (!chatInput.trim()) return;
+    setChatMessages((prev) => [...prev, { from: "driver", text: chatInput }]);
+    setChatInput("");
+    setTimeout(() => {
+      setChatMessages((prev) => [...prev, { from: "passenger", text: "Хорошо, жду!" }]);
+    }, 1500);
+  };
+
+  const sendSupportMessage = () => {
+    if (!supportInput.trim()) return;
+    const time = new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
+    setSupportMessages((prev) => [...prev, { from: "driver", text: supportInput, time }]);
+    setSupportInput("");
+    setTimeout(() => {
+      setSupportMessages((prev) => [...prev, {
+        from: "admin",
+        text: "Ваше обращение принято! Ответим в ближайшее время.",
+        time: new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" }),
+      }]);
+    }, 1500);
+  };
+
+  const handleStatusChange = (orderId: string, nextStatus: Order["status"]) => {
+    onUpdateOrderStatus(orderId, nextStatus);
+    if (nextStatus === "done") {
+      setActiveView(null);
+      setChatOpen(false);
+      setChatMessages([]);
+    }
+  };
+
+  if (supportOpen) {
+    return (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => setSupportOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--taxi-yellow)" }}>
+            <Icon name="ArrowLeft" size={20} />
+          </button>
+          <img src={LOGO_URL} alt="" style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover" }} />
           <div>
-            <h1 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 22, color: "#F0F2F5", marginBottom: 2 }}>
-              Панель водителя
-            </h1>
-            <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{driver.car}</div>
-          </div>
-
-          {/* Status badge */}
-          <div style={{
-            padding: "6px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: "Montserrat",
-            background: isRestricted ? "rgba(239,68,68,0.15)" : driver.status === "busy" ? "rgba(255,204,0,0.15)" : "rgba(34,197,94,0.15)",
-            color: isRestricted ? "var(--taxi-red)" : driver.status === "busy" ? "var(--taxi-yellow)" : "var(--taxi-green)",
-            border: `1px solid ${isRestricted ? "rgba(239,68,68,0.3)" : driver.status === "busy" ? "rgba(255,204,0,0.3)" : "rgba(34,197,94,0.3)"}`,
-          }}>
-            {isRestricted ? "🚫 Ограничен" : driver.status === "busy" ? "🟡 Занят" : "🟢 Свободен"}
+            <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "#F0F2F5" }}>Поддержка</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div className="animate-blink" style={{ width: 6, height: 6, background: "var(--taxi-green)", borderRadius: "50%" }} />
+              <span style={{ fontSize: 11, color: "var(--taxi-green)" }}>Онлайн</span>
+            </div>
           </div>
         </div>
-
-        {isRestricted && (
-          <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 14, marginBottom: 14, fontSize: 13, color: "var(--taxi-red)", lineHeight: 1.5 }}>
-            ⚠️ Ваш аккаунт ограничен администратором. Вы не можете принимать заказы. Обратитесь в поддержку.
-          </div>
-        )}
-
-        {/* Auto-assign toggle */}
-        <div className="taxi-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, padding: "14px 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, background: driver.autoAssign ? "rgba(255,204,0,0.15)" : "var(--taxi-surface)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.2s" }}>
-              <Icon name="Zap" size={20} color={driver.autoAssign ? "var(--taxi-yellow)" : "var(--taxi-muted)"} fallback="Settings" />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 500 }}>Авто-назначение</div>
-              <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginTop: 1 }}>
-                Заказы в радиусе {settings.autoAssignRadiusKm} км • Вы в {driver.distanceKm} км
+        <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+          {supportMessages.map((msg, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: msg.from === "driver" ? "flex-end" : "flex-start" }}>
+              {msg.from === "admin" && (
+                <div style={{ width: 28, height: 28, marginRight: 8, flexShrink: 0, alignSelf: "flex-end" }}>
+                  <img src={LOGO_URL} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover" }} />
+                </div>
+              )}
+              <div style={{
+                maxWidth: "75%", padding: "10px 14px",
+                borderRadius: msg.from === "driver" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                background: msg.from === "driver" ? "var(--taxi-yellow)" : "var(--taxi-card)",
+                border: msg.from === "driver" ? "none" : "1px solid var(--taxi-border)",
+              }}>
+                <p style={{ fontSize: 14, color: msg.from === "driver" ? "var(--taxi-dark)" : "#F0F2F5", lineHeight: 1.5, margin: 0 }}>{msg.text}</p>
+                <p style={{ fontSize: 10, color: msg.from === "driver" ? "rgba(13,15,20,0.5)" : "var(--taxi-muted)", margin: "4px 0 0" }}>{msg.time}</p>
               </div>
             </div>
-          </div>
-          <div onClick={() => !isRestricted && onToggleAutoAssign(driver.id)}
-            style={{ width: 48, height: 28, background: driver.autoAssign && !isRestricted ? "var(--taxi-yellow)" : "var(--taxi-surface)", borderRadius: 14, position: "relative", cursor: isRestricted ? "not-allowed" : "pointer", transition: "background 0.2s", border: `1px solid ${driver.autoAssign && !isRestricted ? "var(--taxi-yellow)" : "var(--taxi-border)"}`, opacity: isRestricted ? 0.5 : 1, flexShrink: 0 }}>
-            <div style={{ position: "absolute", width: 22, height: 22, background: driver.autoAssign && !isRestricted ? "var(--taxi-dark)" : "#F0F2F5", borderRadius: "50%", top: 2, left: driver.autoAssign && !isRestricted ? 23 : 2, transition: "left 0.2s" }} />
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display: "flex", background: "var(--taxi-surface)", borderRadius: 14, padding: 4, marginBottom: 14 }}>
-          {(["active", "free"] as DriverTab[]).map((t) => (
-            <button key={t} onClick={() => setTab(t)}
-              style={{ flex: 1, padding: "10px", background: tab === t ? "var(--taxi-yellow)" : "transparent", border: "none", borderRadius: 10, color: tab === t ? "var(--taxi-dark)" : "var(--taxi-muted)", fontFamily: "Montserrat", fontWeight: 700, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }}>
-              {t === "active" ? `🚗 Мой заказ` : `📋 Свободные (${freeOrders.length})`}
-            </button>
           ))}
         </div>
+        <div style={{ padding: "12px 20px 24px", borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
+          <input className="taxi-input" placeholder="Напишите сообщение..." value={supportInput} onChange={(e) => setSupportInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendSupportMessage()} style={{ flex: 1 }} />
+          <button onClick={sendSupportMessage} style={{ width: 50, height: 50, background: "var(--taxi-yellow)", border: "none", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+            <Icon name="Send" size={20} color="var(--taxi-dark)" fallback="ArrowRight" />
+          </button>
+        </div>
       </div>
+    );
+  }
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 24px", paddingBottom: 88 }}>
-        {tab === "active" ? (
-          <>
-            {myOrder ? (
-              <ActiveOrderCard order={myOrder} onUpdateStatus={onUpdateOrderStatus} />
+  if (autoAssignOffer && !myOrder) {
+    return (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)", padding: 24 }}>
+        <div className="animate-fade-slide-up" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <div style={{
+            width: 80, height: 80, borderRadius: "50%", background: "rgba(255,204,0,0.15)",
+            border: "3px solid var(--taxi-yellow)", display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 36, marginBottom: 20, animation: "pulse 1.5s infinite",
+          }}>🔔</div>
+          <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 6, textAlign: "center" }}>
+            Новый заказ!
+          </div>
+          <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 24, textAlign: "center" }}>Авто-назначение</div>
+
+          <div className="taxi-card" style={{ width: "100%", marginBottom: 20 }}>
+            {autoAssignOffer.tariff === "delivery" ? (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>📦 Доставка</div>
+                <div style={{ fontSize: 14, color: "#F0F2F5" }}>{autoAssignOffer.options.deliveryDescription}</div>
+                <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 4 }}>📍 {autoAssignOffer.to}</div>
+              </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: 40, gap: 12, textAlign: "center" }}>
-                <div style={{ fontSize: 48 }}>🕐</div>
-                <div style={{ fontFamily: "Montserrat", fontWeight: 600, fontSize: 16, color: "#F0F2F5" }}>Нет активного заказа</div>
-                <div style={{ fontSize: 13, color: "var(--taxi-muted)", lineHeight: 1.5 }}>
-                  {driver.autoAssign ? "Автоназначение включено. Ожидайте заказ в вашем районе." : "Включите автоназначение или выберите заказ из списка свободных."}
+              <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
+                  <div style={{ width: 9, height: 9, background: "var(--taxi-green)", borderRadius: "50%" }} />
+                  <div style={{ width: 1, flex: 1, background: "var(--taxi-border)", margin: "4px 0" }} />
+                  <div style={{ width: 9, height: 9, background: "var(--taxi-yellow)", borderRadius: 2 }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, color: "#F0F2F5", marginBottom: 8 }}>{autoAssignOffer.from}</div>
+                  <div style={{ fontSize: 14, color: "var(--taxi-muted)" }}>{autoAssignOffer.to}</div>
                 </div>
               </div>
             )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>👤 {autoAssignOffer.passengerName}</span>
+              <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{TARIFF_LABELS[autoAssignOffer.tariff]}</span>
+              <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{PAYMENT_LABELS[autoAssignOffer.paymentMethod]}</span>
+              {autoAssignOffer.tips > 0 && (
+                <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(34,197,94,0.15)", borderRadius: 6, color: "var(--taxi-green)", fontWeight: 600 }}>+{autoAssignOffer.tips} ₽ чай</span>
+              )}
+              {autoAssignOffer.options.children && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>👶 {autoAssignOffer.options.childrenCount}</span>}
+              {autoAssignOffer.options.luggage && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>🧳</span>}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 12, width: "100%" }}>
+            <button onClick={handleDeclineAutoAssign}
+              style={{ flex: 1, padding: "14px", background: "transparent", border: "1px solid var(--taxi-red)", borderRadius: 14, color: "var(--taxi-red)", fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              Отказаться
+            </button>
+            <button onClick={() => setEtaSelect({ orderId: autoAssignOffer.id })}
+              style={{ flex: 1, padding: "14px", background: "var(--taxi-yellow)", border: "none", borderRadius: 14, color: "var(--taxi-dark)", fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              Взять в работу
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (etaSelect) {
+    return (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)", padding: 24, alignItems: "center", justifyContent: "center" }}>
+        <div className="animate-fade-slide-up" style={{ textAlign: "center", width: "100%" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⏱️</div>
+          <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 8 }}>
+            Время до клиента?
+          </div>
+          <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 28 }}>Выберите примерное время прибытия</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {[3, 5, 7, 9].map((min) => (
+              <button key={min} onClick={() => handleAcceptFromEta(etaSelect.orderId, min)}
+                style={{
+                  padding: "20px 16px", background: "var(--taxi-surface)", border: "1.5px solid var(--taxi-border)",
+                  borderRadius: 18, cursor: "pointer", transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--taxi-yellow)"; e.currentTarget.style.background = "rgba(255,204,0,0.1)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--taxi-border)"; e.currentTarget.style.background = "var(--taxi-surface)"; }}
+              >
+                <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 28, color: "var(--taxi-yellow)", marginBottom: 4 }}>{min}</div>
+                <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>минут</div>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setEtaSelect(null)}
+            style={{ marginTop: 16, background: "transparent", border: "1px solid var(--taxi-border)", borderRadius: 14, padding: "12px 24px", color: "var(--taxi-muted)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
+            Назад
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeView === "ride" && myOrder) {
+    return (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
+        {chatOpen ? (
+          <>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
+              <button onClick={() => setChatOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--taxi-yellow)" }}>
+                <Icon name="ArrowLeft" size={20} />
+              </button>
+              <div style={{ width: 36, height: 36, background: "var(--taxi-yellow)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>👤</div>
+              <div>
+                <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "#F0F2F5" }}>{myOrder.passengerName}</div>
+                <div style={{ fontSize: 11, color: "var(--taxi-green)" }}>Онлайн</div>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+              {chatMessages.length === 0 && (
+                <div style={{ textAlign: "center", color: "var(--taxi-muted)", fontSize: 13, marginTop: 40 }}>Напишите пассажиру</div>
+              )}
+              {chatMessages.map((msg, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: msg.from === "driver" ? "flex-end" : "flex-start" }}>
+                  <div style={{
+                    maxWidth: "75%", padding: "10px 14px",
+                    borderRadius: msg.from === "driver" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                    background: msg.from === "driver" ? "var(--taxi-yellow)" : "var(--taxi-card)",
+                    color: msg.from === "driver" ? "var(--taxi-dark)" : "#F0F2F5", fontSize: 14,
+                    border: msg.from === "driver" ? "none" : "1px solid var(--taxi-border)",
+                  }}>{msg.text}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: "12px 20px 24px", borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
+              <input className="taxi-input" placeholder="Сообщение..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChatMessage()} style={{ flex: 1 }} />
+              <button onClick={sendChatMessage} style={{ width: 50, height: 50, background: "var(--taxi-yellow)", border: "none", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <Icon name="Send" size={20} color="var(--taxi-dark)" fallback="ArrowRight" />
+              </button>
+            </div>
           </>
         ) : (
           <>
+            <div style={{ flex: 1, background: "var(--taxi-surface)", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ textAlign: "center", color: "var(--taxi-muted)" }}>
+                <Icon name="Map" size={48} color="var(--taxi-border)" />
+                <div style={{ fontSize: 13, marginTop: 8 }}>Маршрут до клиента</div>
+              </div>
+            </div>
+
+            <div style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", borderTop: "1px solid var(--taxi-border)", padding: "16px 20px" }}>
+              <div className="taxi-card" style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <span className="animate-blink" style={{ color: getStatusColor(myOrder.status), fontSize: 10 }}>●</span>
+                  <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: getStatusColor(myOrder.status) }}>
+                    {getStatusLabel(myOrder.status)}
+                  </span>
+                  <span style={{ marginLeft: "auto", fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{TARIFF_LABELS[myOrder.tariff]}</span>
+                </div>
+
+                {myOrder.tariff === "delivery" ? (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 13, color: "#F0F2F5" }}>📦 {myOrder.options.deliveryDescription}</div>
+                    <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 4 }}>📍 {myOrder.to}</div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
+                      <div style={{ width: 8, height: 8, background: "var(--taxi-green)", borderRadius: "50%" }} />
+                      <div style={{ width: 1, flex: 1, background: "var(--taxi-border)", margin: "3px 0" }} />
+                      <div style={{ width: 8, height: 8, background: "var(--taxi-yellow)", borderRadius: 2 }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, color: "#F0F2F5", marginBottom: 6 }}>{myOrder.from}</div>
+                      <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{myOrder.to}</div>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>👤 {myOrder.passengerName}</span>
+                  <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{PAYMENT_LABELS[myOrder.paymentMethod]}</span>
+                  {myOrder.tips > 0 && (
+                    <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(34,197,94,0.15)", borderRadius: 6, color: "var(--taxi-green)", fontWeight: 600 }}>+{myOrder.tips} ₽ чай</span>
+                  )}
+                  {myOrder.options.children && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>👶 {myOrder.options.childrenCount}</span>}
+                  {myOrder.options.luggage && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>🧳</span>}
+                  {myOrder.etaMinutes != null && myOrder.status === "assigned" && (
+                    <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>⏱ ~{myOrder.etaMinutes} мин</span>
+                  )}
+                </div>
+
+                {myOrder.options.comment && (
+                  <div style={{ marginTop: 8, padding: "6px 10px", background: "var(--taxi-surface)", borderRadius: 8, fontSize: 12, color: "var(--taxi-muted)", fontStyle: "italic" }}>
+                    💬 {myOrder.options.comment}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                <button onClick={() => setChatOpen(true)}
+                  style={{ flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 14, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Icon name="MessageCircle" size={16} color="var(--taxi-yellow)" /> Чат
+                </button>
+                <button
+                  style={{ flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 14, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  📞 Позвонить
+                </button>
+              </div>
+
+              <RideActionButtons order={myOrder} onStatusChange={handleStatusChange} />
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
+      <div style={{ flex: 1, overflowY: "auto", paddingBottom: 80 }}>
+        {tab === "profile" && (
+          <div className="animate-fade-slide-up" style={{ padding: "24px 24px 0" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 24 }}>
+              <div style={{ width: 80, height: 80, background: "var(--taxi-yellow)", borderRadius: 24, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>🚗</div>
+              <div style={{ textAlign: "center" }}>
+                <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>{driver.name}</h2>
+                <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{driver.phone}</div>
+              </div>
+              <div style={{
+                padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+                background: isRestricted ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)",
+                color: isRestricted ? "var(--taxi-red)" : "var(--taxi-green)",
+                border: `1px solid ${isRestricted ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`,
+              }}>
+                {isRestricted ? "🚫 Ограничен" : "🟢 Активен"}
+              </div>
+            </div>
+
+            {isRestricted && (
+              <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 14, marginBottom: 14, fontSize: 13, color: "var(--taxi-red)", lineHeight: 1.5 }}>
+                ⚠️ Ваш аккаунт ограничен администратором. Обратитесь в поддержку.
+              </div>
+            )}
+
+            <div style={{ fontSize: 11, color: "var(--taxi-muted)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Данные автомобиля</div>
+            {editingCar ? (
+              <div className="taxi-card" style={{ marginBottom: 14 }}>
+                <input className="taxi-input" placeholder="Марка (Toyota, Kia...)" value={carBrand} onChange={(e) => setCarBrand(e.target.value)} style={{ marginBottom: 8 }} />
+                <input className="taxi-input" placeholder="Модель (Camry, Rio...)" value={carModel} onChange={(e) => setCarModel(e.target.value)} style={{ marginBottom: 8 }} />
+                <input className="taxi-input" placeholder="Госномер (А123БВ)" value={carPlate} onChange={(e) => setCarPlate(e.target.value)} style={{ marginBottom: 12 }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setEditingCar(false)} style={{ flex: 1, padding: "10px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "var(--taxi-muted)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
+                    Отмена
+                  </button>
+                  <button onClick={handleSaveCar} disabled={!carBrand.trim() || !carModel.trim() || !carPlate.trim()}
+                    style={{ flex: 1, padding: "10px", background: "var(--taxi-yellow)", border: "none", borderRadius: 12, color: "var(--taxi-dark)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 700, opacity: (!carBrand.trim() || !carModel.trim() || !carPlate.trim()) ? 0.5 : 1 }}>
+                    Сохранить
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="taxi-card" style={{ marginBottom: 14, cursor: "pointer" }} onClick={() => setEditingCar(true)}>
+                {carFilled ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ fontSize: 15, color: "#F0F2F5", fontWeight: 600 }}>{driver.carInfo.brand} {driver.carInfo.model}</div>
+                      <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginTop: 2 }}>{driver.carInfo.plateNumber}</div>
+                    </div>
+                    <Icon name="Pencil" size={16} color="var(--taxi-yellow)" />
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--taxi-red)" }}>
+                    <Icon name="AlertCircle" size={18} />
+                    <span style={{ fontSize: 13 }}>Заполните данные автомобиля для выхода на линию</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="taxi-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "14px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 40, height: 40, background: driver.autoAssign ? "rgba(255,204,0,0.15)" : "var(--taxi-surface)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="Zap" size={20} color={driver.autoAssign ? "var(--taxi-yellow)" : "var(--taxi-muted)"} fallback="Settings" />
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 500 }}>Авто-назначение</div>
+                  <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginTop: 1 }}>
+                    Радиус {settings.autoAssignRadiusKm} км
+                  </div>
+                </div>
+              </div>
+              <div onClick={() => !isRestricted && carFilled && onToggleAutoAssign(driver.id)}
+                style={{
+                  width: 48, height: 28, background: driver.autoAssign && !isRestricted ? "var(--taxi-yellow)" : "var(--taxi-surface)",
+                  borderRadius: 14, position: "relative", cursor: (isRestricted || !carFilled) ? "not-allowed" : "pointer",
+                  transition: "background 0.2s", border: `1px solid ${driver.autoAssign && !isRestricted ? "var(--taxi-yellow)" : "var(--taxi-border)"}`,
+                  opacity: (isRestricted || !carFilled) ? 0.5 : 1, flexShrink: 0,
+                }}>
+                <div style={{ position: "absolute", width: 22, height: 22, background: driver.autoAssign && !isRestricted ? "var(--taxi-dark)" : "#F0F2F5", borderRadius: "50%", top: 2, left: driver.autoAssign && !isRestricted ? 23 : 2, transition: "left 0.2s" }} />
+              </div>
+            </div>
+
+            <button onClick={() => { setTab("orders"); }}
+              style={{
+                width: "100%", padding: "14px 16px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)",
+                borderRadius: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, marginBottom: 10, transition: "border-color 0.2s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--taxi-yellow)")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--taxi-border)")}
+            >
+              <div style={{ width: 40, height: 40, background: "rgba(255,204,0,0.15)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="ClipboardList" size={20} color="var(--taxi-yellow)" />
+              </div>
+              <div style={{ flex: 1, textAlign: "left" }}>
+                <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 600 }}>Свободные заказы</div>
+                <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 1 }}>{freeOrders.length} доступно</div>
+              </div>
+              <Icon name="ChevronRight" size={18} color="var(--taxi-muted)" />
+            </button>
+
+            <button onClick={() => setSupportOpen(true)}
+              style={{
+                width: "100%", padding: "14px 16px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)",
+                borderRadius: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, marginBottom: 10, transition: "border-color 0.2s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--taxi-yellow)")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--taxi-border)")}
+            >
+              <div style={{ width: 40, height: 40, background: "rgba(255,204,0,0.15)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="MessageCircle" size={20} color="var(--taxi-yellow)" />
+              </div>
+              <div style={{ flex: 1, textAlign: "left" }}>
+                <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 600 }}>Поддержка</div>
+                <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 1 }}>Чат с администратором</div>
+              </div>
+              <Icon name="ChevronRight" size={18} color="var(--taxi-muted)" />
+            </button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 0", marginBottom: 8 }}>
+              <Icon name="ShieldCheck" size={16} color="var(--taxi-green)" fallback="Shield" />
+              <span style={{ fontSize: 12, color: "var(--taxi-muted)" }}>End-to-end шифрование активно</span>
+            </div>
+
+            <button onClick={onLogout}
+              style={{
+                width: "100%", padding: "14px", background: "transparent", border: "1px solid var(--taxi-border)",
+                borderRadius: 14, color: "var(--taxi-red)", fontFamily: "Montserrat", fontWeight: 600, fontSize: 14,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              }}>
+              <Icon name="LogOut" size={18} color="var(--taxi-red)" /> Выйти
+            </button>
+          </div>
+        )}
+
+        {tab === "orders" && (
+          <div style={{ padding: "20px 24px 0" }}>
+            <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>Свободные заказы</h2>
+            <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Заказы, которые ещё не взяты</p>
+            {myOrder && (
+              <button onClick={() => setActiveView("ride")}
+                className="taxi-card animate-fade-slide-up"
+                style={{ width: "100%", cursor: "pointer", marginBottom: 14, border: "1.5px solid var(--taxi-yellow)", textAlign: "left" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="animate-blink" style={{ color: "var(--taxi-green)", fontSize: 10 }}>●</span>
+                  <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>У вас активный заказ</span>
+                  <Icon name="ChevronRight" size={16} color="var(--taxi-yellow)" />
+                </div>
+              </button>
+            )}
             {freeOrders.length === 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: 40, gap: 12, textAlign: "center" }}>
-                <div style={{ fontSize: 48 }}>✅</div>
+              <div style={{ textAlign: "center", paddingTop: 40 }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
                 <div style={{ fontFamily: "Montserrat", fontWeight: 600, fontSize: 16, color: "#F0F2F5" }}>Все заказы разобраны</div>
-                <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Новые заказы появятся здесь</div>
+                <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginTop: 6 }}>Новые заказы появятся здесь</div>
               </div>
             ) : (
               freeOrders.map((order, idx) => (
-                <FreeOrderCard key={order.id} order={order} idx={idx}
-                  onAccept={() => !isRestricted && onAcceptOrder(order.id, driver.id, driver.name)}
-                  disabled={isRestricted || !!myOrder} />
+                <FreeOrderCard
+                  key={order.id}
+                  order={order}
+                  idx={idx}
+                  onAccept={() => {
+                    if (!isRestricted && !myOrder && carFilled) setEtaSelect({ orderId: order.id });
+                  }}
+                  disabled={isRestricted || !!myOrder || !carFilled}
+                />
               ))
             )}
-          </>
+          </div>
         )}
+
+        {tab === "history" && (
+          <div style={{ padding: "20px 24px 0" }}>
+            <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>История заказов</h2>
+            <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Все отработанные заказы</p>
+            <DriverHistory orders={orders} driverId={driver.id} />
+          </div>
+        )}
+      </div>
+
+      <div className="nav-bar">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            className={`nav-item ${tab === item.id ? "active" : ""}`}
+            onClick={() => setTab(item.id)}
+          >
+            <Icon name={item.icon} fallback="Circle" size={22} />
+            <span>{item.label}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -127,6 +617,7 @@ function getStatusLabel(status: Order["status"]): string {
   switch (status) {
     case "assigned": return "Едете к пассажиру";
     case "arrived": return "На месте";
+    case "waiting": return "Ожидание";
     case "inprogress": return "В пути";
     default: return "";
   }
@@ -136,126 +627,67 @@ function getStatusColor(status: Order["status"]): string {
   switch (status) {
     case "assigned": return "var(--taxi-yellow)";
     case "arrived": return "var(--taxi-green)";
+    case "waiting": return "#60A5FA";
     case "inprogress": return "var(--taxi-green)";
     default: return "var(--taxi-muted)";
   }
 }
 
-function ActiveOrderCard({ order, onUpdateStatus }: { order: Order; onUpdateStatus: (orderId: string, status: Order["status"]) => void }) {
-  const isDelivery = order.tariff === "delivery";
-  const statusLabel = getStatusLabel(order.status);
-  const statusColor = getStatusColor(order.status);
-
-  const actionButton = (() => {
-    switch (order.status) {
-      case "assigned":
-        return { label: "На месте", nextStatus: "arrived" as const, icon: "📍" };
-      case "arrived":
-        return { label: "Поехали", nextStatus: "inprogress" as const, icon: "🚗" };
-      case "inprogress":
-        return { label: "Завершить поездку", nextStatus: "done" as const, icon: "✓" };
-      default:
-        return null;
-    }
-  })();
-
-  return (
-    <div className="animate-fade-slide-up">
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-        <span className="animate-blink" style={{ color: statusColor, fontSize: 10 }}>●</span>
-        <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: statusColor }}>
-          {statusLabel}
-        </span>
-        <span style={{ marginLeft: "auto", fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)", fontWeight: 500 }}>
-          {TARIFF_LABELS[order.tariff]}
-        </span>
-      </div>
-
-      <div className="taxi-card" style={{ marginBottom: 12 }}>
-        {isDelivery && order.options.deliveryDescription ? (
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>Описание доставки</div>
-            <div style={{ fontSize: 14, color: "#F0F2F5", lineHeight: 1.5 }}>{order.options.deliveryDescription}</div>
-            {order.from && (
-              <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 8 }}>📍 Адрес: {order.from}</div>
-            )}
-          </div>
-        ) : (
-          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
-              <div style={{ width: 9, height: 9, background: "var(--taxi-green)", borderRadius: "50%" }} />
-              <div style={{ width: 1, flex: 1, background: "var(--taxi-border)", margin: "4px 0" }} />
-              <div style={{ width: 9, height: 9, background: "var(--taxi-yellow)", borderRadius: 2 }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, color: "#F0F2F5", marginBottom: 8 }}>{order.from}</div>
-              <div style={{ fontSize: 14, color: "var(--taxi-muted)" }}>{order.to}</div>
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>👤 {order.passengerName}</span>
-          {order.options.children && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>👶 Дети: {order.options.childrenCount}</span>}
-          {order.options.luggage && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>🧳 Багаж</span>}
-          <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(255,204,0,0.15)", borderRadius: 6, color: "var(--taxi-yellow)", fontWeight: 600 }}>{order.price} ₽</span>
-          {order.etaMinutes != null && order.status === "assigned" && (
-            <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>⏱ ~{order.etaMinutes} мин</span>
-          )}
-        </div>
-
-        {order.options.comment && (
-          <div style={{ marginTop: 10, padding: "8px 10px", background: "var(--taxi-surface)", borderRadius: 10, fontSize: 12, color: "var(--taxi-muted)", fontStyle: "italic" }}>
-            💬 {order.options.comment}
-          </div>
-        )}
-      </div>
-
-      <div style={{ display: "flex", gap: 10 }}>
-        <button style={{ flex: 1, padding: "13px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 14, color: "#F0F2F5", fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          📞 Позвонить
+function RideActionButtons({ order, onStatusChange }: { order: Order; onStatusChange: (orderId: string, status: Order["status"]) => void }) {
+  switch (order.status) {
+    case "assigned":
+      return (
+        <button onClick={() => onStatusChange(order.id, "arrived")} className="btn-yellow">
+          📍 На месте
         </button>
-        {actionButton && (
-          <button
-            onClick={() => onUpdateStatus(order.id, actionButton.nextStatus)}
-            style={{
-              flex: 1,
-              padding: "13px",
-              background: actionButton.nextStatus === "done" ? "var(--taxi-green)" : "var(--taxi-yellow)",
-              border: "none",
-              borderRadius: 14,
-              color: "var(--taxi-dark)",
-              fontFamily: "Montserrat",
-              fontWeight: 700,
-              fontSize: 14,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              transition: "opacity 0.2s",
-            }}>
-            {actionButton.icon} {actionButton.label}
+      );
+    case "arrived":
+      return (
+        <button onClick={() => onStatusChange(order.id, "inprogress")}
+          style={{ width: "100%", padding: "14px", background: "var(--taxi-green)", border: "none", borderRadius: 14, color: "#fff", fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+          🚗 Поехали
+        </button>
+      );
+    case "inprogress":
+      return (
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => onStatusChange(order.id, "waiting")}
+            style={{ flex: 1, padding: "14px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 14, color: "#60A5FA", fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            ⏸ Ожидание
           </button>
-        )}
-      </div>
-    </div>
-  );
+          <button onClick={() => onStatusChange(order.id, "done")}
+            style={{ flex: 1, padding: "14px", background: "var(--taxi-green)", border: "none", borderRadius: 14, color: "#fff", fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            ✓ Завершить
+          </button>
+        </div>
+      );
+    case "waiting":
+      return (
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => onStatusChange(order.id, "inprogress")}
+            style={{ flex: 1, padding: "14px", background: "var(--taxi-yellow)", border: "none", borderRadius: 14, color: "var(--taxi-dark)", fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            🚗 Продолжить
+          </button>
+          <button onClick={() => onStatusChange(order.id, "done")}
+            style={{ flex: 1, padding: "14px", background: "var(--taxi-green)", border: "none", borderRadius: 14, color: "#fff", fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            ✓ Завершить
+          </button>
+        </div>
+      );
+    default:
+      return null;
+  }
 }
 
 function FreeOrderCard({ order, idx, onAccept, disabled }: { order: Order; idx: number; onAccept: () => void; disabled: boolean }) {
-  const isDelivery = order.tariff === "delivery";
-
   return (
     <div className="taxi-card animate-fade-slide-up" style={{ marginBottom: 10, animationDelay: `${idx * 0.07}s` }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-        {isDelivery && order.options.deliveryDescription ? (
+        {order.tariff === "delivery" ? (
           <div style={{ flex: 1, marginRight: 12 }}>
             <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>📦 Доставка</div>
             <div style={{ fontSize: 13, color: "#F0F2F5", lineHeight: 1.4 }}>{order.options.deliveryDescription}</div>
-            {order.from && (
-              <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 4 }}>📍 {order.from}</div>
-            )}
+            <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 4 }}>📍 {order.to}</div>
           </div>
         ) : (
           <div style={{ display: "flex", gap: 8 }}>
@@ -270,14 +702,17 @@ function FreeOrderCard({ order, idx, onAccept, disabled }: { order: Order; idx: 
             </div>
           </div>
         )}
-        <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 18, color: "var(--taxi-yellow)", flexShrink: 0 }}>{order.price} ₽</div>
       </div>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
         <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{order.createdAt}</span>
         <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{TARIFF_LABELS[order.tariff]}</span>
-        {order.options.children && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>👶 Дети: {order.options.childrenCount}</span>}
-        {order.options.luggage && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>🧳 Багаж</span>}
+        <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{PAYMENT_LABELS[order.paymentMethod]}</span>
+        {order.tips > 0 && (
+          <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(34,197,94,0.15)", borderRadius: 6, color: "var(--taxi-green)", fontWeight: 600 }}>+{order.tips} ₽ чай</span>
+        )}
+        {order.options.children && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>👶 {order.options.childrenCount}</span>}
+        {order.options.luggage && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)" }}>🧳</span>}
       </div>
 
       {order.options.comment && (
@@ -287,9 +722,73 @@ function FreeOrderCard({ order, idx, onAccept, disabled }: { order: Order; idx: 
       )}
 
       <button onClick={onAccept} disabled={disabled}
-        style={{ width: "100%", padding: "12px", background: disabled ? "var(--taxi-surface)" : "var(--taxi-yellow)", border: `1px solid ${disabled ? "var(--taxi-border)" : "var(--taxi-yellow)"}`, borderRadius: 13, color: disabled ? "var(--taxi-muted)" : "var(--taxi-dark)", fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, cursor: disabled ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
-        {disabled ? "Недоступно" : "Принять заказ →"}
+        style={{
+          width: "100%", padding: "12px", background: disabled ? "var(--taxi-surface)" : "var(--taxi-yellow)",
+          border: `1px solid ${disabled ? "var(--taxi-border)" : "var(--taxi-yellow)"}`, borderRadius: 13,
+          color: disabled ? "var(--taxi-muted)" : "var(--taxi-dark)", fontFamily: "Montserrat", fontWeight: 700,
+          fontSize: 14, cursor: disabled ? "not-allowed" : "pointer",
+        }}>
+        {disabled ? "Недоступно" : "Взять в работу"}
       </button>
     </div>
+  );
+}
+
+function DriverHistory({ orders, driverId }: { orders: Order[]; driverId: string }) {
+  const completed = orders.filter(
+    (o) => o.driverId === driverId && (o.status === "done" || o.status === "cancelled")
+  );
+
+  if (completed.length === 0) {
+    return (
+      <div style={{ textAlign: "center", paddingTop: 40 }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
+        <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "#F0F2F5", marginBottom: 6 }}>Пока нет завершённых заказов</div>
+        <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Они появятся здесь после первой поездки</div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {completed.slice().reverse().map((trip, idx) => (
+        <div key={trip.id} className="taxi-card animate-fade-slide-up" style={{ marginBottom: 10, animationDelay: `${idx * 0.07}s` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div style={{ flex: 1 }}>
+              {trip.tariff === "delivery" ? (
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, color: "#F0F2F5" }}>📦 Доставка</div>
+                  <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 2 }}>{trip.to}</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
+                    <div style={{ width: 7, height: 7, background: "var(--taxi-green)", borderRadius: "50%" }} />
+                    <div style={{ width: 1, flex: 1, background: "var(--taxi-border)", margin: "3px 0" }} />
+                    <div style={{ width: 7, height: 7, background: trip.status === "cancelled" ? "var(--taxi-red)" : "var(--taxi-yellow)", borderRadius: 2 }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, color: "#F0F2F5", marginBottom: 4 }}>{trip.from}</div>
+                    <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{trip.to}</div>
+                  </div>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11, color: "var(--taxi-muted)", background: "var(--taxi-surface)", padding: "3px 8px", borderRadius: 6 }}>{trip.createdAt}</span>
+                <span style={{ fontSize: 11, color: "var(--taxi-muted)", background: "var(--taxi-surface)", padding: "3px 8px", borderRadius: 6 }}>{TARIFF_LABELS[trip.tariff]}</span>
+                <span style={{ fontSize: 11, color: "var(--taxi-muted)", background: "var(--taxi-surface)", padding: "3px 8px", borderRadius: 6 }}>👤 {trip.passengerName}</span>
+              </div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
+              {trip.status === "cancelled" ? (
+                <span style={{ fontSize: 12, color: "var(--taxi-red)", fontWeight: 600 }}>Отменён</span>
+              ) : (
+                <span style={{ fontSize: 12, color: "var(--taxi-green)", fontWeight: 600 }}>Завершён</span>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </>
   );
 }

@@ -7,7 +7,7 @@ import DriverScreen from "./pages/taxi/DriverScreen";
 import AdminScreen from "./pages/taxi/AdminScreen";
 import Icon from "@/components/ui/icon";
 import {
-  User, Order, Driver, AppSettings,
+  User, Order, Driver, AppSettings, DriverCarInfo,
   INITIAL_DRIVERS, INITIAL_ORDERS, INITIAL_SETTINGS,
 } from "./pages/taxi/types";
 
@@ -40,12 +40,14 @@ export default function App() {
   const handleOrderCreate = (order: Order) => setOrders((prev) => [...prev, order]);
   const handleOrderCancel = (id: string) =>
     setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status: "cancelled" } : o));
-  const handleAcceptOrder = (orderId: string, driverId: string, driverName: string) =>
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "assigned", driverId, driverName } : o));
+  const handleAcceptOrder = (orderId: string, driverId: string, driverName: string, eta?: number) =>
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "assigned", driverId, driverName, etaMinutes: eta } : o));
   const handleToggleAutoAssign = (driverId: string) =>
     setDrivers((prev) => prev.map((d) => d.id === driverId ? { ...d, autoAssign: !d.autoAssign } : d));
   const handleUpdateDriver = (id: string, changes: Partial<Driver>) =>
     setDrivers((prev) => prev.map((d) => d.id === id ? { ...d, ...changes } : d));
+  const handleUpdateDriverCar = (driverId: string, carInfo: DriverCarInfo) =>
+    setDrivers((prev) => prev.map((d) => d.id === driverId ? { ...d, carInfo, car: `${carInfo.brand} ${carInfo.model} • ${carInfo.plateNumber}` } : d));
 
   const handleRateDriver = (driverId: string, rating: number) => {
     if (rating === 0) return;
@@ -120,6 +122,8 @@ export default function App() {
                 onAcceptOrder={handleAcceptOrder}
                 onToggleAutoAssign={handleToggleAutoAssign}
                 onUpdateOrderStatus={handleUpdateOrderStatus}
+                onUpdateDriverCar={handleUpdateDriverCar}
+                onLogout={handleLogout}
               />
             </div>
 
