@@ -24,7 +24,7 @@ export default function HistoryScreen({ orders, onRepeat }: Props) {
         <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Все ваши поездки</p>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 24px", paddingBottom: 88 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 24px", paddingBottom: 80 }}>
         {completed.length === 0 ? (
           <div style={{ textAlign: "center", marginTop: 60 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
@@ -64,9 +64,19 @@ export default function HistoryScreen({ orders, onRepeat }: Props) {
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 11, color: "var(--taxi-muted)", background: "var(--taxi-surface)", padding: "3px 8px", borderRadius: 6 }}>{trip.createdAt}</span>
                     <span style={{ fontSize: 11, color: "var(--taxi-muted)", background: "var(--taxi-surface)", padding: "3px 8px", borderRadius: 6 }}>{TARIFF_LABEL[trip.tariff] ?? trip.tariff}</span>
+                    {trip.distanceKm > 0 && (
+                      <span style={{ fontSize: 11, color: "var(--taxi-muted)", background: "var(--taxi-surface)", padding: "3px 8px", borderRadius: 6 }}>
+                        {trip.distanceKm} km
+                      </span>
+                    )}
                     {trip.driverName && (
                       <span style={{ fontSize: 11, color: "var(--taxi-muted)", background: "var(--taxi-surface)", padding: "3px 8px", borderRadius: 6 }}>
                         <Icon name="User" size={10} /> {trip.driverName}
+                      </span>
+                    )}
+                    {trip.discount > 0 && (
+                      <span style={{ fontSize: 11, color: "var(--taxi-green)", background: "rgba(34,197,94,0.15)", padding: "3px 8px", borderRadius: 6, fontWeight: 600 }}>
+                        -{trip.discount}%
                       </span>
                     )}
                   </div>

@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import YandexMap from "@/components/YandexMap";
 import AddressInput from "@/components/AddressInput";
-import { Order, User, AppSettings, Driver, LOGO_URL, PaymentMethod } from "./types";
+import { Order, User, AppSettings, Driver, LOGO_URL, PaymentMethod, calcOrderPrice } from "./types";
+import { playNotificationSound, sendPush } from "./notifications";
 
 interface Props {
   user: User;
@@ -56,11 +57,12 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     if (step === "found") {
       setEtaMinutes(Math.floor(Math.random() * 6) + 3);
       showToast("Водитель найден!", "Едет к вам");
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Sovyonok Tax", { body: "Водитель найден и едет к вам!" });
-      } else if ("Notification" in window && Notification.permission !== "denied") {
-        Notification.requestPermission();
-      }
+      playNotificationSound("arrive");
+      sendPush("Sovyonok Tax", "Водитель найден и едет к вам!");
+    }
+    if (step === "arrived") {
+      playNotificationSound("arrive");
+      sendPush("Sovyonok Tax", "Водитель на месте!");
     }
   }, [step]);
 
@@ -85,11 +87,17 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
   const activeOrder = orders.find((o) => o.id === activeOrderId);
   const assignedDriver = activeOrder?.driverId ? drivers.find(d => d.id === activeOrder.driverId) : null;
 
+  const estimateDistance = (): number => {
+    if (!from || !to) return 10;
+    const lenDiff = Math.abs(from.length - to.length);
+    const combined = from.length + to.length;
+    return Math.max(2, Math.min(50, Math.round(combined / 5 + lenDiff)));
+  };
+
+  const currentDistanceKm = estimateDistance();
+
   const calcPrice = () => {
-    if (tariff === "hourly") return settings.pricePerHour;
-    if (tariff === "delivery") return settings.priceDelivery;
-    const dist = 10;
-    return Math.round(dist * settings.pricePerKm);
+    return calcOrderPrice(currentDistanceKm, settings, tariff);
   };
 
   const handleOrder = () => {
@@ -102,6 +110,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       id: `o_${Date.now()}`,
       passengerId: user.id,
       passengerName: user.name,
+      passengerPhone: user.phone,
       from: tariff === "delivery" ? "" : from,
       to: tariff === "delivery" ? deliveryAddress : to,
       tariff,
@@ -115,9 +124,13 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       status: "pending",
       paymentMethod,
       tips,
+      discount: 0,
+      distanceKm: currentDistanceKm,
       price: calcPrice(),
       createdAt: new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" }),
+      createdTimestamp: Date.now(),
       freeAt: Date.now(),
+      acceptedVia: undefined,
     };
     onOrderCreate(order);
     setActiveOrderId(order.id);
@@ -159,6 +172,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     setChatInput("");
     setTimeout(() => {
       setChatMessages(prev => [...prev, { from: "driver", text: "Хорошо, понял!" }]);
+      playNotificationSound("message");
     }, 1500);
   };
 
@@ -378,7 +392,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       </div>
 
       {step === "form" && (
-        <div style={{ background: "var(--taxi-card)", borderRadius: "24px 24px 0 0", borderTop: "1px solid var(--taxi-border)", padding: "16px 20px", paddingBottom: 88, overflowY: "auto", maxHeight: "calc(100% - 200px)" }}>
+        <div style={{ background: "var(--taxi-card)", borderRadius: "24px 24px 0 0", borderTop: "1px solid var(--taxi-border)", padding: "16px 20px", paddingBottom: 80, overflowY: "auto", maxHeight: "calc(100% - 200px)" }}>
           <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
             {TARIFFS.map((t) => (
               <button key={t.id} onClick={() => setTariff(t.id)}

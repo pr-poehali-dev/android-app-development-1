@@ -1,15 +1,18 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { UserRole, User, Driver, LOGO_URL } from "./types";
+import { User, Driver, AppSettings, LOGO_URL } from "./types";
+import { saveSession } from "./notifications";
+import AgreementScreen from "./AgreementScreen";
 
 interface Props {
   onAuth: (user: User) => void;
   drivers: Driver[];
+  settings: AppSettings;
 }
 
 type AuthTab = "passenger" | "driver" | "admin";
 
-export default function AuthScreen({ onAuth, drivers }: Props) {
+export default function AuthScreen({ onAuth, drivers, settings }: Props) {
   const [activeTab, setActiveTab] = useState<AuthTab>("passenger");
   const [phone, setPhone] = useState("");
   const [step, setStep] = useState<"input" | "code">("input");
@@ -21,6 +24,7 @@ export default function AuthScreen({ onAuth, drivers }: Props) {
   const [showDriverPass, setShowDriverPass] = useState(false);
   const [showAdminPass, setShowAdminPass] = useState(false);
   const [error, setError] = useState("");
+  const [showAgreement, setShowAgreement] = useState(false);
 
   const showError = (msg: string) => {
     setError(msg);
@@ -41,7 +45,9 @@ export default function AuthScreen({ onAuth, drivers }: Props) {
     }
     if (next.every((d) => d !== "") && idx === 3) {
       setTimeout(() => {
-        onAuth({ id: `u_${Date.now()}`, name: "Пассажир", phone: `+7 ${phone}`, role: "passenger" });
+        const u: User = { id: `u_${Date.now()}`, name: "Пассажир", phone: `+7 ${phone}`, role: "passenger" };
+        saveSession({ userId: u.id, role: u.role, name: u.name, phone: u.phone });
+        onAuth(u);
       }, 400);
     }
   };
@@ -49,6 +55,7 @@ export default function AuthScreen({ onAuth, drivers }: Props) {
   const handleDriverLogin = () => {
     const found = drivers.find((d) => d.login === driverLogin && d.password === driverPassword);
     if (found) {
+      saveSession({ userId: found.id, role: "driver", name: found.name, phone: found.phone, driverLogin: found.login });
       onAuth({ id: found.id, name: found.name, phone: found.phone, role: "driver" });
     } else {
       showError("Неверный логин или пароль");
@@ -56,8 +63,10 @@ export default function AuthScreen({ onAuth, drivers }: Props) {
   };
 
   const handleAdminLogin = () => {
-    if (adminLogin === "admin" && adminPassword === "admin75reg") {
-      onAuth({ id: "admin_1", name: "Администратор", phone: "", role: "admin" });
+    if (adminLogin === "admin" && adminPassword === settings.adminPassword) {
+      const u: User = { id: "admin_1", name: "Администратор", phone: "", role: "admin" };
+      saveSession({ userId: u.id, role: u.role, name: u.name, phone: u.phone });
+      onAuth(u);
     } else {
       showError("Неверный логин или пароль");
     }
@@ -75,6 +84,14 @@ export default function AuthScreen({ onAuth, drivers }: Props) {
     setAdminLogin(""); setAdminPassword("");
     setError("");
   };
+
+  if (showAgreement) {
+    return (
+      <div style={{ height: "100%", position: "relative" }}>
+        <AgreementScreen onClose={() => setShowAgreement(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col" style={{ height: "100%", background: "var(--taxi-dark)" }}>
@@ -132,7 +149,7 @@ export default function AuthScreen({ onAuth, drivers }: Props) {
               <input className="taxi-input" style={{ paddingLeft: 44 }} placeholder="(999) 000-00-00" type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} maxLength={10} />
             </div>
             <p style={{ fontSize: 12, color: "var(--taxi-muted)", marginBottom: 16, lineHeight: 1.5 }}>
-              Нажимая кнопку, вы принимаете <span style={{ color: "var(--taxi-yellow)" }}>условия соглашения</span>
+              Нажимая кнопку, вы принимаете <span style={{ color: "var(--taxi-yellow)", cursor: "pointer", textDecoration: "underline" }} onClick={() => setShowAgreement(true)}>условия соглашения</span>
             </p>
             <button className="btn-yellow" onClick={handlePhoneNext} disabled={phone.length < 10} style={{ opacity: phone.length < 10 ? 0.5 : 1 }}>
               Получить код
@@ -157,7 +174,11 @@ export default function AuthScreen({ onAuth, drivers }: Props) {
                   style={{ width: 60, height: 60, background: d ? "var(--taxi-yellow)" : "var(--taxi-surface)", border: `2px solid ${d ? "var(--taxi-yellow)" : "var(--taxi-border)"}`, borderRadius: 16, textAlign: "center", fontSize: 22, fontWeight: 700, color: d ? "var(--taxi-dark)" : "#F0F2F5", outline: "none", transition: "all 0.2s", fontFamily: "Montserrat" }} />
               ))}
             </div>
-            <button className="btn-yellow" onClick={() => onAuth({ id: `u_${Date.now()}`, name: "Пассажир", phone: `+7 ${phone}`, role: "passenger" })}>
+            <button className="btn-yellow" onClick={() => {
+              const u: User = { id: `u_${Date.now()}`, name: "Пассажир", phone: `+7 ${phone}`, role: "passenger" };
+              saveSession({ userId: u.id, role: u.role, name: u.name, phone: u.phone });
+              onAuth(u);
+            }}>
               Подтвердить
             </button>
             <div style={{ textAlign: "center", marginTop: 14 }}>

@@ -6,32 +6,23 @@
   :root {
     --background: 220 16% 8%;
     --foreground: 0 0% 96%;
-
     --card: 220 14% 11%;
     --card-foreground: 0 0% 96%;
-
     --popover: 220 14% 11%;
     --popover-foreground: 0 0% 96%;
-
     --primary: 48 100% 50%;
     --primary-foreground: 220 16% 8%;
-
     --secondary: 220 12% 16%;
     --secondary-foreground: 0 0% 80%;
-
     --muted: 220 12% 16%;
     --muted-foreground: 220 8% 50%;
-
     --accent: 48 100% 50%;
     --accent-foreground: 220 16% 8%;
-
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-
     --border: 220 12% 18%;
     --input: 220 12% 16%;
     --ring: 48 100% 50%;
-
     --radius: 1rem;
 
     --taxi-yellow: #ffcc00;
@@ -57,6 +48,17 @@
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
   }
 
   body {
@@ -64,40 +66,30 @@
     font-family: "Golos Text", sans-serif;
     background-color: var(--taxi-dark);
     color: #f0f2f5;
-    overflow-x: hidden;
-  }
-
-  html {
-    background-color: var(--taxi-dark);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Phone frame */
-.phone-frame {
-  width: 390px;
-  min-height: 844px;
+.app-container {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
   background: var(--taxi-dark);
-  border-radius: 44px;
-  overflow: hidden;
-  box-shadow:
-    0 0 0 2px #2a303d,
-    0 0 0 4px #1e2330,
-    0 40px 120px rgba(0, 0, 0, 0.8),
-    inset 0 0 60px rgba(255, 204, 0, 0.03);
   position: relative;
-}
-
-/* Status bar */
-.status-bar {
-  height: 44px;
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  background: transparent;
+  flex-direction: column;
 }
 
-/* Map mockup */
+@media (min-width: 768px) {
+  .app-container {
+    max-width: 480px;
+    margin: 0 auto;
+    height: 100vh;
+  }
+}
+
 .map-bg {
   background: linear-gradient(135deg, #141b2d 0%, #0d1420 100%);
   position: relative;
@@ -120,14 +112,12 @@
   border-radius: 4px;
 }
 
-/* Bottom sheet */
 .bottom-sheet {
   background: var(--taxi-card);
   border-radius: 28px 28px 0 0;
   padding: 12px 24px 32px;
 }
 
-/* Input field */
 .taxi-input {
   background: var(--taxi-surface);
   border: 1px solid var(--taxi-border);
@@ -149,7 +139,6 @@
   color: var(--taxi-muted);
 }
 
-/* Yellow button */
 .btn-yellow {
   background: var(--taxi-yellow);
   color: var(--taxi-dark);
@@ -172,16 +161,29 @@
   opacity: 0.9;
 }
 
-/* Nav bar */
+.btn-yellow:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .nav-bar {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background: var(--taxi-card);
   border-top: 1px solid var(--taxi-border);
   display: flex;
-  padding: 8px 0 20px;
+  padding: 8px 0 max(env(safe-area-inset-bottom, 8px), 8px);
+  z-index: 100;
+}
+
+@media (min-width: 768px) {
+  .nav-bar {
+    max-width: 480px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
 }
 
 .nav-item {
@@ -196,13 +198,14 @@
   color: var(--taxi-muted);
   font-size: 10px;
   font-family: "Golos Text", sans-serif;
+  background: none;
+  border: none;
 }
 
 .nav-item.active {
   color: var(--taxi-yellow);
 }
 
-/* Card */
 .taxi-card {
   background: var(--taxi-card);
   border: 1px solid var(--taxi-border);
@@ -210,7 +213,6 @@
   padding: 16px;
 }
 
-/* Animations */
 @keyframes fadeSlideUp {
   from {
     opacity: 0;
@@ -263,6 +265,18 @@
   }
 }
 
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
 .animate-fade-slide-up {
   animation: fadeSlideUp 0.4s ease both;
 }
@@ -288,7 +302,6 @@
   animation: blink 1.5s ease infinite;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
 }
@@ -298,4 +311,13 @@
 ::-webkit-scrollbar-thumb {
   background: var(--taxi-border);
   border-radius: 4px;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }

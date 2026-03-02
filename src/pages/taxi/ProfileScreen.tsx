@@ -1,30 +1,48 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
-import { User, LOGO_URL } from "./types";
+import { User, SupportMessage, LOGO_URL } from "./types";
+import { playNotificationSound } from "./notifications";
 
 interface Props {
   user: User;
   onLogout: () => void;
+  onSendSupport: (msg: SupportMessage) => void;
+  supportMessages: SupportMessage[];
 }
 
-export default function ProfileScreen({ user, onLogout }: Props) {
+export default function ProfileScreen({ user, onLogout, onSendSupport, supportMessages }: Props) {
   const [supportOpen, setSupportOpen] = useState(false);
-  const [messages, setMessages] = useState<{ from: string; text: string; time: string }[]>([
-    { from: "admin", text: "Здравствуйте! Чем могу помочь?", time: "сейчас" },
-  ]);
   const [input, setInput] = useState("");
+  const prevCountRef = useRef(supportMessages.length);
+
+  const myMessages = supportMessages.filter(
+    (m) => m.fromId === user.id || (m.fromRole === "admin" && m.fromId === user.id)
+  );
+
+  useEffect(() => {
+    if (supportMessages.length > prevCountRef.current) {
+      const lastMsg = supportMessages[supportMessages.length - 1];
+      if (lastMsg.fromRole === "admin" && lastMsg.fromId === user.id) {
+        playNotificationSound("message");
+      }
+    }
+    prevCountRef.current = supportMessages.length;
+  }, [supportMessages, user.id]);
 
   const sendMessage = () => {
     if (!input.trim()) return;
-    setMessages((prev) => [...prev, { from: "user", text: input, time: new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" }) }]);
+    const msg: SupportMessage = {
+      id: `sm_${Date.now()}`,
+      fromId: user.id,
+      fromName: user.name,
+      fromRole: "passenger",
+      text: input.trim(),
+      time: new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" }),
+      timestamp: Date.now(),
+      read: false,
+    };
+    onSendSupport(msg);
     setInput("");
-    setTimeout(() => {
-      setMessages((prev) => [...prev, {
-        from: "admin",
-        text: "Ваше обращение принято! Ответим в ближайшее время.",
-        time: new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" }),
-      }]);
-    }, 1500);
   };
 
   if (supportOpen) {
@@ -47,30 +65,33 @@ export default function ProfileScreen({ user, onLogout }: Props) {
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
-          {messages.map((msg, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: msg.from === "user" ? "flex-end" : "flex-start" }}>
-              {msg.from === "admin" && (
+          {myMessages.length === 0 && (
+            <div style={{ textAlign: "center", color: "var(--taxi-muted)", fontSize: 13, marginTop: 40 }}>Напишите в поддержку</div>
+          )}
+          {myMessages.map((msg) => (
+            <div key={msg.id} style={{ display: "flex", justifyContent: msg.fromRole === "passenger" ? "flex-end" : "flex-start" }}>
+              {msg.fromRole === "admin" && (
                 <div style={{ width: 28, height: 28, marginRight: 8, flexShrink: 0, alignSelf: "flex-end" }}>
                   <img src={LOGO_URL} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover" }} />
                 </div>
               )}
               <div style={{
                 maxWidth: "75%", padding: "10px 14px",
-                borderRadius: msg.from === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                background: msg.from === "user" ? "var(--taxi-yellow)" : "var(--taxi-card)",
-                border: msg.from === "user" ? "none" : "1px solid var(--taxi-border)",
+                borderRadius: msg.fromRole === "passenger" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                background: msg.fromRole === "passenger" ? "var(--taxi-yellow)" : "var(--taxi-card)",
+                border: msg.fromRole === "passenger" ? "none" : "1px solid var(--taxi-border)",
               }}>
-                <p style={{ fontSize: 14, color: msg.from === "user" ? "var(--taxi-dark)" : "#F0F2F5", lineHeight: 1.5, margin: 0 }}>{msg.text}</p>
-                <p style={{ fontSize: 10, color: msg.from === "user" ? "rgba(13,15,20,0.5)" : "var(--taxi-muted)", margin: "4px 0 0" }}>{msg.time}</p>
+                <p style={{ fontSize: 14, color: msg.fromRole === "passenger" ? "var(--taxi-dark)" : "#F0F2F5", lineHeight: 1.5, margin: 0 }}>{msg.text}</p>
+                <p style={{ fontSize: 10, color: msg.fromRole === "passenger" ? "rgba(13,15,20,0.5)" : "var(--taxi-muted)", margin: "4px 0 0" }}>{msg.time}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div style={{ padding: "12px 20px", paddingBottom: 88, borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
+        <div style={{ padding: "12px 20px", paddingBottom: 80, borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
           <input className="taxi-input" placeholder="Напишите сообщение..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendMessage()} style={{ flex: 1 }} />
           <button onClick={sendMessage} style={{ width: 50, height: 50, background: "var(--taxi-yellow)", border: "none", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-            <Icon name="Send" size={20} color="var(--taxi-dark)" fallback="ArrowRight" />
+            <Icon name="Send" size={20} color="var(--taxi-dark)" />
           </button>
         </div>
       </div>
@@ -86,7 +107,7 @@ export default function ProfileScreen({ user, onLogout }: Props) {
               {user.avatar ? (
                 <img src={user.avatar} alt="" style={{ width: 90, height: 90, borderRadius: 28, objectFit: "cover" }} />
               ) : (
-                "👤"
+                <Icon name="User" size={42} color="var(--taxi-dark)" />
               )}
             </div>
             <div style={{ position: "absolute", bottom: -2, right: -2, width: 22, height: 22, background: "var(--taxi-green)", borderRadius: "50%", border: "2px solid var(--taxi-dark)" }} />
@@ -101,7 +122,7 @@ export default function ProfileScreen({ user, onLogout }: Props) {
         </div>
       </div>
 
-      <div style={{ flex: 1, padding: "0 24px", paddingBottom: 88 }}>
+      <div style={{ flex: 1, padding: "0 24px", paddingBottom: 80 }}>
         <button
           onClick={() => setSupportOpen(true)}
           className="animate-fade-slide-up"
@@ -124,7 +145,7 @@ export default function ProfileScreen({ user, onLogout }: Props) {
         </button>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 0", marginBottom: 8 }}>
-          <Icon name="ShieldCheck" size={16} color="var(--taxi-green)" fallback="Shield" />
+          <Icon name="ShieldCheck" size={16} color="var(--taxi-green)" />
           <span style={{ fontSize: 12, color: "var(--taxi-muted)" }}>End-to-end шифрование активно</span>
         </div>
 
