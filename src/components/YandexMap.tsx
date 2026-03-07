@@ -68,6 +68,18 @@ export default function YandexMap({ fromAddress, toAddress, height = "100%", pic
         suppressMapOpenBlock: true,
       });
       mapRef.current.events.add("click", handleClick);
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (mapRef.current) {
+              mapRef.current.setCenter([pos.coords.latitude, pos.coords.longitude], 14, { duration: 600 });
+            }
+          },
+          () => {},
+          { timeout: 5000, enableHighAccuracy: false }
+        );
+      }
     };
 
     if (window.ymaps) {

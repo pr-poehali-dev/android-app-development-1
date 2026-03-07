@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import AuthScreen from "./pages/taxi/AuthScreen";
 import PassengerOrderScreen from "./pages/taxi/PassengerOrderScreen";
 import HistoryScreen from "./pages/taxi/HistoryScreen";
@@ -13,6 +13,7 @@ import {
 import {
   requestNotificationPermission, saveSession, loadSession, clearSession,
 } from "./pages/taxi/notifications";
+import api from "./pages/taxi/api";
 
 type PassengerTab = "profile" | "order" | "history";
 
@@ -33,9 +34,24 @@ export default function App() {
   const [passengers, setPassengers] = useState<User[]>(INITIAL_PASSENGERS);
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [dbReady, setDbReady] = useState(false);
+
+  const loadFromDb = useCallback(async () => {
+    if (!api.isConnected()) return;
+    const data = await api.getState("admin");
+    if (data && data.settings) {
+      setSettings(data.settings);
+      if (data.drivers?.length > 0) setDrivers(data.drivers);
+      if (data.orders?.length > 0) setOrders(data.orders);
+      if (data.passengers?.length > 0) setPassengers(data.passengers);
+      if (data.supportMessages?.length > 0) setSupportMessages(data.supportMessages);
+      setDbReady(true);
+    }
+  }, []);
 
   useEffect(() => {
     requestNotificationPermission();
+    loadFromDb();
     const session = loadSession();
     if (session) {
       if (session.role === "admin") {
@@ -48,13 +64,20 @@ export default function App() {
       }
     }
     setLoaded(true);
-  }, []);
+  }, [loadFromDb]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    const interval = setInterval(loadFromDb, 5000);
+    return () => clearInterval(interval);
+  }, [dbReady, loadFromDb]);
 
   const handleAuth = (u: User) => {
     setUser(u);
     const dLogin = u.role === "driver" ? drivers.find((d) => d.id === u.id)?.login : undefined;
     saveSession({ userId: u.id, role: u.role, name: u.name, phone: u.phone, driverLogin: dLogin });
     if (u.role === "passenger") {
+      api.authPassenger({ id: u.id, name: u.name, phone: u.phone });
       const exists = passengers.find((p) => p.phone === u.phone);
       if (!exists) {
         setPassengers((prev) => [...prev, { ...u, registeredAt: new Date().toISOString().slice(0, 10) }]);
@@ -74,18 +97,41 @@ export default function App() {
     setTab("order");
   };
 
-  const handleOrderCreate = (order: Order) => setOrders((prev) => [...prev, order]);
-  const handleOrderCancel = (id: string, by?: "passenger" | "driver" | "admin") =>
-    setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status: "cancelled", cancelledBy: by || "passenger" } : o));
-  const handleAcceptOrder = (orderId: string, driverId: string, driverName: string, eta?: number) =>
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "assigned", driverId, driverName, etaMinutes: eta } : o));
-  const handleToggleAutoAssign = (driverId: string) =>
+  const handleOrderCreate = (order: Order) => {
+    setOrders((prev) => [...prev, order]);
+    api.createOrder(order as unknown as Record<string, unknown>);
+  };
+
+  const handleOrderCancel = (id: string, by?: "passenger" | "driver" | "admin") => {
+    setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status: "cancelled" as const, cancelledBy: by || "passenger" } : o));
+    api.cancelOrder(id, by || "passenger");
+  };
+
+  const handleAcceptOrder = (orderId: string, driverId: string, driverName: string, eta?: number) => {
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "assigned" as const, driverId, driverName, etaMinutes: eta } : o));
+    api.acceptOrder({ orderId, driverId, driverName, eta });
+  };
+
+  const handleToggleAutoAssign = (driverId: string) => {
     setDrivers((prev) => prev.map((d) => d.id === driverId ? { ...d, autoAssign: !d.autoAssign } : d));
-  const handleUpdateDriver = (id: string, changes: Partial<Driver>) =>
+    api.toggleAutoAssign(driverId);
+  };
+
+  const handleUpdateDriver = (id: string, changes: Partial<Driver>) => {
     setDrivers((prev) => prev.map((d) => d.id === id ? { ...d, ...changes } : d));
-  const handleAddDriver = (d: Driver) => setDrivers((prev) => [...prev, d]);
-  const handleUpdateDriverCar = (driverId: string, carInfo: DriverCarInfo) =>
+    api.updateDriver(id, changes as Record<string, unknown>);
+  };
+
+  const handleAddDriver = (d: Driver) => {
+    setDrivers((prev) => [...prev, d]);
+    api.addDriver(d as unknown as Record<string, unknown>);
+  };
+
+  const handleUpdateDriverCar = (driverId: string, carInfo: DriverCarInfo) => {
     setDrivers((prev) => prev.map((d) => d.id === driverId ? { ...d, carInfo, car: `${carInfo.brand} ${carInfo.model} • ${carInfo.plateNumber}` } : d));
+    api.updateDriverCar(driverId, carInfo);
+  };
+
   const handleRateDriver = (driverId: string, rating: number) => {
     if (rating === 0) return;
     setDrivers((prev) => prev.map((d) => {
@@ -94,17 +140,33 @@ export default function App() {
       const newCount = d.tripsCount + 1;
       return { ...d, rating: Math.round((totalRating / newCount) * 10) / 10, tripsCount: newCount };
     }));
+    api.rateDriver(driverId, rating);
   };
+
   const handleDeleteDriver = (id: string) => setDrivers((prev) => prev.filter((d) => d.id !== id));
+
   const handleDeleteUser = (id: string) => {
     setPassengers((prev) => prev.filter((p) => p.id !== id));
     setDrivers((prev) => prev.filter((d) => d.id !== id));
   };
-  const handleUpdateOrderStatus = (orderId: string, status: Order["status"]) =>
+
+  const handleUpdateOrderStatus = (orderId: string, status: Order["status"]) => {
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o));
+    api.updateOrder(orderId, status);
+  };
+
   const handleUpdateOrder = (orderId: string, changes: Partial<Order>) =>
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, ...changes } : o));
-  const handleSendSupport = (msg: SupportMessage) => setSupportMessages((prev) => [...prev, msg]);
+
+  const handleUpdateSettings = (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    api.updateSettings(newSettings as unknown as Record<string, unknown>);
+  };
+
+  const handleSendSupport = (msg: SupportMessage) => {
+    setSupportMessages((prev) => [...prev, msg]);
+    api.sendSupport(msg as unknown as Record<string, unknown>);
+  };
 
   const currentDriver = user?.role === "driver" ? drivers.find((d) => d.id === user.id) ?? null : null;
 
@@ -121,7 +183,7 @@ export default function App() {
           settings={settings}
           passengers={passengers}
           supportMessages={supportMessages}
-          onUpdateSettings={setSettings}
+          onUpdateSettings={handleUpdateSettings}
           onUpdateDriver={handleUpdateDriver}
           onAddDriver={handleAddDriver}
           onDeleteDriver={handleDeleteDriver}
