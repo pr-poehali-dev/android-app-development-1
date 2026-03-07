@@ -121,7 +121,7 @@ export interface PassengerStats {
   cancelledOrders: number;
 }
 
-export const LOGO_URL = "https://cdn.poehali.dev/projects/e03e7d24-4919-4d6e-81b9-d7fc9a11aa44/files/b06ff327-60a9-4558-a8d1-5ce55e5ef2f6.jpg";
+export const LOGO_URL = "https://cdn.poehali.dev/projects/e03e7d24-4919-4d6e-81b9-d7fc9a11aa44/files/73a4c75d-4bc3-4bdf-bc99-805f9c78663b.jpg";
 
 export const INITIAL_DRIVERS: Driver[] = [
   { id: "d1", name: "Алексей Козлов", phone: "+7 916 111-22-33", car: "Toyota Camry • А123БВ", carInfo: { brand: "Toyota", model: "Camry", plateNumber: "А123БВ" }, rating: 4.9, status: "active", autoAssign: true, distanceKm: 1.2, tripsCount: 234, tripsLast24h: 5, priority: 1, login: "kozlov", password: "driver1", hasAds: true, subscriptionDays: 30, subscriptionStart: Date.now() - 86400000 * 5, freeWork: false, registeredAt: "2025-12-01", autoAssignDeclines: 2, cancelledOrders: 3, autoAssignTrips: 150, freeTrips: 84, totalEarnings: 58000, totalKm: 4200, totalHours: 310 },
