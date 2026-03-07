@@ -53,6 +53,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
   const [etaMinutes, setEtaMinutes] = useState(5);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [tips, setTips] = useState(0);
+  const [pickMode, setPickMode] = useState<"from" | "to" | null>(null);
 
   const showToast = (text: string, sub?: string) => {
     setToast({ text, sub });
@@ -105,6 +106,15 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
 
   const isDelivery = tariff === "delivery";
   const isCargo = tariff === "hourly";
+
+  const handleMapPick = (address: string) => {
+    if (pickMode === "from") setFrom(address);
+    else if (pickMode === "to") {
+      if (isDelivery) setDeliveryAddress(address);
+      else setTo(address);
+    }
+    setPickMode(null);
+  };
 
   const scheduledAtStr = scheduleType === "scheduled" && scheduleDay && scheduleMonth && scheduleHour && scheduleMin
     ? `${scheduleDay.padStart(2, "0")}.${scheduleMonth.padStart(2, "0")} ${scheduleHour.padStart(2, "0")}:${scheduleMin.padStart(2, "0")}`
@@ -167,6 +177,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     setChatOpen(false); setChatMessages([]);
     setPaymentMethod("cash"); setTips(0);
     setScheduleType("now"); setScheduleDay(""); setScheduleMonth(""); setScheduleHour(""); setScheduleMin("");
+    setPickMode(null);
   };
 
   const handleRate = (stars: number) => {
@@ -278,7 +289,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       )}
 
       <div style={{ flex: step === "form" ? "0 0 200px" : 1, position: "relative", overflow: "hidden", transition: "flex 0.4s" }}>
-        <YandexMap fromAddress={isDelivery ? "" : from} toAddress={isDelivery ? deliveryAddress : to} height="100%" />
+        <YandexMap fromAddress={isDelivery ? "" : from} toAddress={isDelivery ? deliveryAddress : to} height="100%" pickMode={step === "form" ? pickMode : null} onMapPick={handleMapPick} />
 
         {step === "searching" && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, background: "rgba(13,15,20,0.85)", backdropFilter: "blur(4px)" }}>
@@ -415,22 +426,46 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
 
           {isDelivery ? (
             <>
-              <AddressInput value={deliveryAddress} onChange={setDeliveryAddress} placeholder="Куда доставить?" dotColor="var(--taxi-yellow)" />
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ flex: 1 }}>
+                  <AddressInput value={deliveryAddress} onChange={setDeliveryAddress} placeholder="Куда доставить?" dotColor="var(--taxi-yellow)" />
+                </div>
+                <button onClick={() => setPickMode(pickMode === "to" ? null : "to")}
+                  style={{ width: 44, height: 44, flexShrink: 0, background: pickMode === "to" ? "var(--taxi-yellow)" : "var(--taxi-surface)", border: `1px solid ${pickMode === "to" ? "var(--taxi-yellow)" : "var(--taxi-border)"}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <Icon name="MapPin" size={18} color={pickMode === "to" ? "var(--taxi-dark)" : "var(--taxi-yellow)"} />
+                </button>
+              </div>
               <div style={{ height: 8 }} />
               <textarea className="taxi-input" placeholder="Что нужно доставить?" value={deliveryWhat} onChange={(e) => setDeliveryWhat(e.target.value)} rows={2} style={{ resize: "none", marginBottom: 10 }} />
             </>
           ) : (
             <>
-              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 14, gap: 2 }}>
                   <div style={{ width: 10, height: 10, background: "var(--taxi-green)", borderRadius: "50%" }} />
                   <div style={{ width: 1, flex: 1, background: "var(--taxi-border)", minHeight: 14 }} />
                   <div style={{ width: 10, height: 10, background: "var(--taxi-yellow)", borderRadius: 2 }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <AddressInput value={from} onChange={setFrom} placeholder="Откуда едем?" dotColor="var(--taxi-green)" />
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <div style={{ flex: 1 }}>
+                      <AddressInput value={from} onChange={setFrom} placeholder="Откуда едем?" dotColor="var(--taxi-green)" />
+                    </div>
+                    <button onClick={() => setPickMode(pickMode === "from" ? null : "from")}
+                      style={{ width: 44, height: 44, flexShrink: 0, background: pickMode === "from" ? "var(--taxi-green)" : "var(--taxi-surface)", border: `1px solid ${pickMode === "from" ? "var(--taxi-green)" : "var(--taxi-border)"}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                      <Icon name="MapPin" size={18} color={pickMode === "from" ? "#fff" : "var(--taxi-green)"} />
+                    </button>
+                  </div>
                   <div style={{ height: 6 }} />
-                  <AddressInput value={to} onChange={setTo} placeholder="Куда едем?" dotColor="var(--taxi-yellow)" />
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <div style={{ flex: 1 }}>
+                      <AddressInput value={to} onChange={setTo} placeholder="Куда едем?" dotColor="var(--taxi-yellow)" />
+                    </div>
+                    <button onClick={() => setPickMode(pickMode === "to" ? null : "to")}
+                      style={{ width: 44, height: 44, flexShrink: 0, background: pickMode === "to" ? "var(--taxi-yellow)" : "var(--taxi-surface)", border: `1px solid ${pickMode === "to" ? "var(--taxi-yellow)" : "var(--taxi-border)"}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                      <Icon name="MapPin" size={18} color={pickMode === "to" ? "var(--taxi-dark)" : "var(--taxi-yellow)"} />
+                    </button>
+                  </div>
                 </div>
               </div>
 
