@@ -1229,7 +1229,7 @@ export default function AdminScreen({
 
         <div className="taxi-card" style={{ marginBottom: 12 }}>
           <div style={labelRow}>
-            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Почасовой тариф</span>
+            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Грузовой тариф</span>
             <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>
               {localSettings.pricePerHour} ₽/ч
             </span>

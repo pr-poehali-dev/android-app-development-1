@@ -17,7 +17,10 @@ export interface OrderOptions {
   luggage: boolean;
   comment: string;
   deliveryDescription?: string;
+  cargoDescription?: string;
 }
+
+export type ScheduleType = "now" | "scheduled";
 
 export interface Order {
   id: string;
@@ -43,6 +46,8 @@ export interface Order {
   freeAt?: number;
   acceptedVia?: "auto" | "free";
   cancelledBy?: "passenger" | "driver" | "admin";
+  scheduledAt?: string;
+  waitingMinutes?: number;
 }
 
 export interface DriverCarInfo {

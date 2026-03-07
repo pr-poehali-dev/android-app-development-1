@@ -14,7 +14,7 @@ import { playNotificationSound, sendPush } from "./notifications";
 
 const TARIFF_LABELS: Record<Order["tariff"], string> = {
   economy: "Эконом",
-  hourly: "Почасовой",
+  hourly: "Грузовой",
   delivery: "Доставка",
 };
 

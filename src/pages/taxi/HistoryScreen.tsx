@@ -3,7 +3,7 @@ import { Order } from "./types";
 
 const TARIFF_LABEL: Record<string, string> = {
   economy: "Эконом",
-  hourly: "Почасовой",
+  hourly: "Грузовой",
   delivery: "Доставка",
 };
 
@@ -74,9 +74,9 @@ export default function HistoryScreen({ orders, onRepeat }: Props) {
                         <Icon name="User" size={10} /> {trip.driverName}
                       </span>
                     )}
-                    {trip.discount > 0 && (
-                      <span style={{ fontSize: 11, color: "var(--taxi-green)", background: "rgba(34,197,94,0.15)", padding: "3px 8px", borderRadius: 6, fontWeight: 600 }}>
-                        -{trip.discount}%
+                    {trip.scheduledAt && (
+                      <span style={{ fontSize: 11, color: "var(--taxi-yellow)", background: "rgba(255,204,0,0.12)", padding: "3px 8px", borderRadius: 6 }}>
+                        📅 {trip.scheduledAt}
                       </span>
                     )}
                   </div>
