@@ -91,17 +91,17 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
   if (screen === "welcome") {
     return (
       <div className="flex flex-col" style={{ height: "100%", background: "var(--taxi-dark)" }}>
-        <div className="map-bg relative flex-1 flex items-center justify-center" style={{ minHeight: 220 }}>
+        <div className="map-bg relative flex-1 flex items-center justify-center" style={{ minHeight: 160 }}>
           <div className="map-road" style={{ width: 2, height: "100%", left: "30%", top: 0, opacity: 0.4 }} />
           <div className="map-road" style={{ width: 2, height: "100%", left: "70%", top: 0, opacity: 0.3 }} />
           <div className="map-road" style={{ height: 2, width: "100%", top: "40%", left: 0, opacity: 0.4 }} />
           <div className="map-road" style={{ height: 2, width: "100%", top: "70%", left: 0, opacity: 0.3 }} />
           <div className="flex flex-col items-center gap-3 animate-fade-slide-up" style={{ zIndex: 1 }}>
-            <div className="animate-pulse-glow" style={{ width: 88, height: 88, borderRadius: 26, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <img src={LOGO_URL} alt="Антипиха Taxi" style={{ width: 88, height: 88, objectFit: "cover", borderRadius: 26 }} />
+            <div className="animate-pulse-glow" style={{ width: "var(--logo-size)", height: "var(--logo-size)", borderRadius: "var(--logo-radius)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src={LOGO_URL} alt="Антипиха Taxi" style={{ width: "var(--logo-size)", height: "var(--logo-size)", objectFit: "cover", borderRadius: "var(--logo-radius)" }} />
             </div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: "Montserrat", fontWeight: 900, fontSize: 26, color: "#F0F2F5" }}>
+              <div style={{ fontFamily: "Montserrat", fontWeight: 900, fontSize: "var(--title-size)", color: "#F0F2F5" }}>
                 Антипиха <span style={{ color: "var(--taxi-yellow)" }}>Taxi</span>
               </div>
               <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 4 }}>Быстро. Надёжно. Безопасно.</div>
@@ -110,64 +110,64 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
           <div className="animate-car absolute" style={{ bottom: 12, fontSize: 22 }}>🚕</div>
         </div>
 
-        <div className="bottom-sheet animate-fade-slide-up animate-delay-200" style={{ paddingTop: 20, paddingBottom: 28 }}>
+        <div className="bottom-sheet animate-fade-slide-up animate-delay-200">
           <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 6, textAlign: "center" }}>Добро пожаловать!</h2>
-          <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 22, textAlign: "center" }}>Выберите, как вы хотите войти</p>
+          <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 18, textAlign: "center" }}>Выберите, как вы хотите войти</p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <button onClick={() => setScreen("passenger")}
               style={{
-                width: "100%", padding: "16px 20px", background: "var(--taxi-yellow)", border: "none", borderRadius: 16,
-                cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "transform 0.15s",
+                width: "100%", padding: "14px var(--page-px)", background: "var(--taxi-yellow)", border: "none", borderRadius: "var(--btn-radius)",
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "transform 0.15s",
               }}
               onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
               onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
               onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
-              <div style={{ width: 48, height: 48, background: "rgba(13,15,20,0.15)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon name="User" size={24} color="var(--taxi-dark)" />
+              <div style={{ width: 44, height: 44, background: "rgba(13,15,20,0.15)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="User" size={22} color="var(--taxi-dark)" />
               </div>
-              <div style={{ textAlign: "left", flex: 1 }}>
-                <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "var(--taxi-dark)" }}>Пассажир</div>
-                <div style={{ fontSize: 12, color: "rgba(13,15,20,0.6)", marginTop: 2 }}>Вход по номеру телефона</div>
+              <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "var(--taxi-dark)" }}>Пассажир</div>
+                <div style={{ fontSize: 11, color: "rgba(13,15,20,0.6)", marginTop: 1 }}>Вход по номеру телефона</div>
               </div>
-              <Icon name="ChevronRight" size={20} color="var(--taxi-dark)" />
+              <Icon name="ChevronRight" size={18} color="var(--taxi-dark)" />
             </button>
 
             <button onClick={() => setScreen("driver")}
               style={{
-                width: "100%", padding: "16px 20px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 16,
-                cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.15s",
+                width: "100%", padding: "14px var(--page-px)", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: "var(--btn-radius)",
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.15s",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--taxi-yellow)")}
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--taxi-border)")}
             >
-              <div style={{ width: 48, height: 48, background: "rgba(255,204,0,0.12)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon name="Car" size={24} color="var(--taxi-yellow)" />
+              <div style={{ width: 44, height: 44, background: "rgba(255,204,0,0.12)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="Car" size={22} color="var(--taxi-yellow)" />
               </div>
-              <div style={{ textAlign: "left", flex: 1 }}>
-                <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "#F0F2F5" }}>Водитель</div>
-                <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 2 }}>Логин и пароль от администратора</div>
+              <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "#F0F2F5" }}>Водитель</div>
+                <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginTop: 1 }}>Логин и пароль от администратора</div>
               </div>
-              <Icon name="ChevronRight" size={20} color="var(--taxi-muted)" />
+              <Icon name="ChevronRight" size={18} color="var(--taxi-muted)" />
             </button>
 
             <button onClick={() => setScreen("admin")}
               style={{
-                width: "100%", padding: "16px 20px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 16,
-                cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.15s",
+                width: "100%", padding: "14px var(--page-px)", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: "var(--btn-radius)",
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.15s",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--taxi-yellow)")}
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--taxi-border)")}
             >
-              <div style={{ width: 48, height: 48, background: "rgba(255,204,0,0.12)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon name="Shield" size={24} color="var(--taxi-yellow)" />
+              <div style={{ width: 44, height: 44, background: "rgba(255,204,0,0.12)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="Shield" size={22} color="var(--taxi-yellow)" />
               </div>
-              <div style={{ textAlign: "left", flex: 1 }}>
-                <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "#F0F2F5" }}>Администратор</div>
-                <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 2 }}>Вход только по логину и паролю</div>
+              <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "#F0F2F5" }}>Администратор</div>
+                <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginTop: 1 }}>Вход только по логину и паролю</div>
               </div>
-              <Icon name="ChevronRight" size={20} color="var(--taxi-muted)" />
+              <Icon name="ChevronRight" size={18} color="var(--taxi-muted)" />
             </button>
           </div>
         </div>
@@ -177,14 +177,14 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
 
   return (
     <div className="flex flex-col" style={{ height: "100%", background: "var(--taxi-dark)" }}>
-      <div className="map-bg relative" style={{ minHeight: 140, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div className="map-bg relative" style={{ minHeight: 120, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div className="map-road" style={{ width: 2, height: "100%", left: "30%", top: 0, opacity: 0.4 }} />
         <div className="map-road" style={{ width: 2, height: "100%", left: "70%", top: 0, opacity: 0.3 }} />
         <div className="map-road" style={{ height: 2, width: "100%", top: "40%", left: 0, opacity: 0.4 }} />
         <div className="map-road" style={{ height: 2, width: "100%", top: "70%", left: 0, opacity: 0.3 }} />
         <div className="flex flex-col items-center gap-2 animate-fade-slide-up" style={{ zIndex: 1 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 18, overflow: "hidden" }}>
-            <img src={LOGO_URL} alt="Антипиха Taxi" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 18 }} />
+          <div style={{ width: "var(--logo-sm-size)", height: "var(--logo-sm-size)", borderRadius: "var(--logo-sm-radius)", overflow: "hidden" }}>
+            <img src={LOGO_URL} alt="Антипиха Taxi" style={{ width: "var(--logo-sm-size)", height: "var(--logo-sm-size)", objectFit: "cover", borderRadius: "var(--logo-sm-radius)" }} />
           </div>
           <div style={{ fontFamily: "Montserrat", fontWeight: 900, fontSize: 18, color: "#F0F2F5" }}>
             Антипиха <span style={{ color: "var(--taxi-yellow)" }}>Taxi</span>
@@ -192,8 +192,8 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
         </div>
       </div>
 
-      <div className="bottom-sheet animate-fade-slide-up animate-delay-200" style={{ paddingTop: 16, flex: 1 }}>
-        <button onClick={goBack} style={{ background: "none", border: "none", color: "var(--taxi-yellow)", fontSize: 13, cursor: "pointer", padding: "0 0 16px", display: "flex", alignItems: "center", gap: 6, fontFamily: "Golos Text" }}>
+      <div className="bottom-sheet animate-fade-slide-up animate-delay-200" style={{ flex: 1, overflowY: "auto" }}>
+        <button onClick={goBack} style={{ background: "none", border: "none", color: "var(--taxi-yellow)", fontSize: 13, cursor: "pointer", padding: "0 0 14px", display: "flex", alignItems: "center", gap: 6, fontFamily: "Golos Text" }}>
           <Icon name="ArrowLeft" size={15} /> Назад
         </button>
 
@@ -232,10 +232,10 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
             </button>
             <h2 style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>Введите код</h2>
             <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 22 }}>Отправили SMS на +7 {phone}</p>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 22 }}>
+            <div style={{ display: "flex", gap: "var(--code-gap)", justifyContent: "center", marginBottom: 22 }}>
               {code.map((d, i) => (
                 <input key={i} className="code-input" value={d} onChange={(e) => handleCodeChange(e.target.value, i)} maxLength={1} type="text" inputMode="numeric"
-                  style={{ width: 60, height: 60, background: d ? "var(--taxi-yellow)" : "var(--taxi-surface)", border: `2px solid ${d ? "var(--taxi-yellow)" : "var(--taxi-border)"}`, borderRadius: 16, textAlign: "center", fontSize: 22, fontWeight: 700, color: d ? "var(--taxi-dark)" : "#F0F2F5", outline: "none", transition: "all 0.2s", fontFamily: "Montserrat" }} />
+                  style={{ width: "var(--code-size)", height: "var(--code-size)", background: d ? "var(--taxi-yellow)" : "var(--taxi-surface)", border: `2px solid ${d ? "var(--taxi-yellow)" : "var(--taxi-border)"}`, borderRadius: "var(--btn-radius)", textAlign: "center", fontSize: "var(--code-font)", fontWeight: 700, color: d ? "var(--taxi-dark)" : "#F0F2F5", outline: "none", transition: "all 0.2s", fontFamily: "Montserrat" }} />
               ))}
             </div>
             <button className="btn-yellow" onClick={() => {

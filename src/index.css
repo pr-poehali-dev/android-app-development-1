@@ -321,3 +321,115 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+:root {
+  --page-px: 24px;
+  --page-pt: 24px;
+  --card-radius: 18px;
+  --btn-radius: 16px;
+  --sheet-radius: 28px;
+  --logo-size: 88px;
+  --logo-radius: 26px;
+  --logo-sm-size: 56px;
+  --logo-sm-radius: 18px;
+  --title-size: 26px;
+  --code-size: 60px;
+  --code-font: 22px;
+  --code-gap: 10px;
+  --star-size: 40px;
+}
+
+@media (max-width: 374px) {
+  :root {
+    --page-px: 16px;
+    --page-pt: 16px;
+    --card-radius: 14px;
+    --btn-radius: 14px;
+    --sheet-radius: 22px;
+    --logo-size: 68px;
+    --logo-radius: 20px;
+    --logo-sm-size: 48px;
+    --logo-sm-radius: 14px;
+    --title-size: 22px;
+    --code-size: 50px;
+    --code-font: 20px;
+    --code-gap: 8px;
+    --star-size: 32px;
+  }
+
+  .bottom-sheet {
+    padding: 10px 16px 24px;
+    border-radius: var(--sheet-radius) var(--sheet-radius) 0 0;
+  }
+
+  .taxi-card {
+    border-radius: var(--card-radius);
+    padding: 12px;
+  }
+
+  .taxi-input {
+    padding: 12px 14px;
+    font-size: 14px;
+    border-radius: 12px;
+  }
+
+  .btn-yellow {
+    padding: 14px;
+    font-size: 15px;
+    border-radius: var(--btn-radius);
+  }
+
+  .nav-item {
+    padding: 6px 0;
+    font-size: 9px;
+  }
+}
+
+@media (min-width: 375px) and (max-width: 413px) {
+  :root {
+    --page-px: 20px;
+    --page-pt: 20px;
+    --logo-size: 80px;
+    --logo-radius: 24px;
+    --title-size: 24px;
+    --code-size: 56px;
+    --code-font: 21px;
+    --star-size: 36px;
+  }
+
+  .bottom-sheet {
+    padding: 12px 20px 28px;
+  }
+}
+
+@media (max-height: 600px) {
+  :root {
+    --logo-size: 64px;
+    --logo-radius: 18px;
+    --logo-sm-size: 44px;
+    --logo-sm-radius: 12px;
+  }
+
+  .bottom-sheet {
+    padding-top: 10px;
+    padding-bottom: 20px;
+  }
+
+  .nav-bar {
+    padding: 6px 0 max(env(safe-area-inset-bottom, 4px), 4px);
+  }
+
+  .nav-item {
+    padding: 6px 0;
+    gap: 2px;
+  }
+}
+
+.page-padding {
+  padding-left: var(--page-px);
+  padding-right: var(--page-px);
+}
+
+.page-section {
+  padding: var(--page-pt) var(--page-px) 0;
+}

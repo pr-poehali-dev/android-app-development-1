@@ -361,7 +361,7 @@ export default function AdminScreen({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
         {[
           { label: "Свободные", value: freeOrders.length, color: "var(--taxi-yellow)", icon: "Clock" },
           { label: "В работе", value: inWorkOrders.length, color: "#60A5FA", icon: "Loader" },
@@ -379,7 +379,7 @@ export default function AdminScreen({
 
       <div style={sectionTitle}>Активные заказы ({activeOrders.length})</div>
       {activeOrders.length === 0 ? (
-        <div className="taxi-card" style={{ textAlign: "center", padding: 20, color: "var(--taxi-muted)", fontSize: 13 }}>
+        <div className="taxi-card" style={{ textAlign: "center", padding: "var(--page-px)", color: "var(--taxi-muted)", fontSize: 13 }}>
           Нет активных заказов
         </div>
       ) : (
@@ -445,7 +445,7 @@ export default function AdminScreen({
 
       <div style={{ ...sectionTitle, marginTop: 16 }}>Водители онлайн ({onlineDrivers.length})</div>
       {onlineDrivers.length === 0 ? (
-        <div className="taxi-card" style={{ textAlign: "center", padding: 20, color: "var(--taxi-muted)", fontSize: 13 }}>
+        <div className="taxi-card" style={{ textAlign: "center", padding: "var(--page-px)", color: "var(--taxi-muted)", fontSize: 13 }}>
           Нет водителей онлайн
         </div>
       ) : (
@@ -500,7 +500,7 @@ export default function AdminScreen({
         >
           <div
             className="taxi-card animate-fade-slide-up"
-            style={{ width: "100%", maxWidth: 340 }}
+            style={{ width: "calc(100% - 24px)", maxWidth: 340 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ ...headingStyle, fontSize: 16, marginBottom: 16 }}>Смена пароля</div>
@@ -545,7 +545,7 @@ export default function AdminScreen({
         >
           <div
             className="taxi-card animate-fade-slide-up"
-            style={{ width: "100%", maxWidth: 380 }}
+            style={{ width: "calc(100% - 24px)", maxWidth: 380 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ ...headingStyle, fontSize: 16, marginBottom: 4 }}>Заказ #{orderModal.id}</div>
@@ -827,7 +827,7 @@ export default function AdminScreen({
           >
             <div
               className="taxi-card animate-fade-slide-up"
-              style={{ width: "100%", maxWidth: 320 }}
+              style={{ width: "calc(100% - 24px)", maxWidth: 320 }}
               onClick={(e) => e.stopPropagation()}
             >
               <div style={{ ...headingStyle, fontSize: 15, marginBottom: 12 }}>Новый пароль</div>
@@ -1111,7 +1111,7 @@ export default function AdminScreen({
         >
           <div
             className="taxi-card animate-fade-slide-up"
-            style={{ width: "100%", maxWidth: 300, textAlign: "center" }}
+            style={{ width: "calc(100% - 24px)", maxWidth: 300, textAlign: "center" }}
             onClick={(e) => e.stopPropagation()}
           >
             <Icon name="AlertTriangle" size={32} color="var(--taxi-red)" />
@@ -1617,7 +1617,7 @@ export default function AdminScreen({
 
           <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
             {messages.length === 0 && (
-              <div style={{ textAlign: "center", padding: 20, color: "var(--taxi-muted)", fontSize: 13 }}>
+              <div style={{ textAlign: "center", padding: "var(--page-px)", color: "var(--taxi-muted)", fontSize: 13 }}>
                 Нет сообщений
               </div>
             )}
@@ -1775,7 +1775,7 @@ export default function AdminScreen({
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", paddingBottom: 80 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px var(--page-px)", paddingBottom: 80 }}>
         {tab === "overview" && renderOverview()}
         {tab === "stats" && renderStats()}
         {tab === "drivers" && renderDrivers()}

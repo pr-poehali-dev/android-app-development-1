@@ -177,7 +177,7 @@ export default function DriverScreen({
   if (supportOpen) {
     return (
       <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ padding: "14px var(--page-px)", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => setSupportOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--taxi-yellow)" }}>
             <Icon name="ArrowLeft" size={20} />
           </button>
@@ -190,7 +190,7 @@ export default function DriverScreen({
             </div>
           </div>
         </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "var(--page-px)", display: "flex", flexDirection: "column", gap: 10 }}>
           {mySupportMessages.length === 0 && (
             <div style={{ textAlign: "center", color: "var(--taxi-muted)", fontSize: 13, marginTop: 40 }}>Напишите в поддержку</div>
           )}
@@ -213,7 +213,7 @@ export default function DriverScreen({
             </div>
           ))}
         </div>
-        <div style={{ padding: "12px 20px 24px", borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
+        <div style={{ padding: "12px var(--page-px) 20px", borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
           <input className="taxi-input" placeholder="Напишите сообщение..." value={supportInput} onChange={(e) => setSupportInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendSupportMessage()} style={{ flex: 1 }} />
           <button onClick={sendSupportMessage} style={{ width: 50, height: 50, background: "var(--taxi-yellow)", border: "none", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
             <Icon name="Send" size={20} color="var(--taxi-dark)" />
@@ -225,7 +225,7 @@ export default function DriverScreen({
 
   if (autoAssignOffer && !myOrder) {
     return (
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)", padding: 24 }}>
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)", padding: "var(--page-px)" }}>
         <div className="animate-fade-slide-up" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           <div style={{
             width: 80, height: 80, borderRadius: "50%", background: "rgba(255,204,0,0.15)",
@@ -302,7 +302,7 @@ export default function DriverScreen({
             {[3, 5, 7, 9].map((min) => (
               <button key={min} onClick={() => handleAcceptFromEta(etaSelect.orderId, min)}
                 style={{
-                  padding: "20px 16px", background: "var(--taxi-surface)", border: "1.5px solid var(--taxi-border)",
+                  padding: "16px 12px", background: "var(--taxi-surface)", border: "1.5px solid var(--taxi-border)",
                   borderRadius: 18, cursor: "pointer", transition: "all 0.2s",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--taxi-yellow)"; e.currentTarget.style.background = "rgba(255,204,0,0.1)"; }}
@@ -327,7 +327,7 @@ export default function DriverScreen({
       <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
         {chatOpen ? (
           <>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ padding: "14px var(--page-px)", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
               <button onClick={() => setChatOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--taxi-yellow)" }}>
                 <Icon name="ArrowLeft" size={20} />
               </button>
@@ -339,7 +339,7 @@ export default function DriverScreen({
                 <div style={{ fontSize: 11, color: "var(--taxi-green)" }}>Онлайн</div>
               </div>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: "var(--page-px)", display: "flex", flexDirection: "column", gap: 10 }}>
               {chatMessages.length === 0 && (
                 <div style={{ textAlign: "center", color: "var(--taxi-muted)", fontSize: 13, marginTop: 40 }}>Напишите пассажиру</div>
               )}
@@ -357,7 +357,7 @@ export default function DriverScreen({
                 </div>
               ))}
             </div>
-            <div style={{ padding: "12px 20px 24px", borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
+            <div style={{ padding: "12px var(--page-px) 20px", borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
               <input className="taxi-input" placeholder="Сообщение..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChatMessage()} style={{ flex: 1 }} />
               <button onClick={sendChatMessage} style={{ width: 50, height: 50, background: "var(--taxi-yellow)", border: "none", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                 <Icon name="Send" size={20} color="var(--taxi-dark)" />
@@ -373,7 +373,7 @@ export default function DriverScreen({
               </div>
             </div>
 
-            <div style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", borderTop: "1px solid var(--taxi-border)", padding: "16px 20px" }}>
+            <div style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", borderTop: "1px solid var(--taxi-border)", padding: "14px var(--page-px)" }}>
               <div className="taxi-card" style={{ marginBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                   <span className="animate-blink" style={{ color: getStatusColor(myOrder.status), fontSize: 10 }}>●</span>
@@ -448,7 +448,7 @@ export default function DriverScreen({
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
       <div style={{ flex: 1, overflowY: "auto", paddingBottom: 80 }}>
         {tab === "profile" && (
-          <div className="animate-fade-slide-up" style={{ padding: "24px 24px 0" }}>
+          <div className="animate-fade-slide-up" style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 24 }}>
               <div style={{ width: 80, height: 80, background: "var(--taxi-yellow)", borderRadius: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Icon name="Car" size={36} color="var(--taxi-dark)" />
@@ -604,7 +604,7 @@ export default function DriverScreen({
         )}
 
         {tab === "orders" && (
-          <div style={{ padding: "20px 24px 0" }}>
+          <div style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
             <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>Свободные заказы</h2>
             <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Заказы, которые ещё не взяты</p>
             {myOrder && (
@@ -642,7 +642,7 @@ export default function DriverScreen({
         )}
 
         {tab === "history" && (
-          <div style={{ padding: "20px 24px 0" }}>
+          <div style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
             <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>История заказов</h2>
             <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Все отработанные заказы</p>
             <DriverHistory orders={orders} driverId={driver.id} />

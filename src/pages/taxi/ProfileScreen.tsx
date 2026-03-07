@@ -48,7 +48,7 @@ export default function ProfileScreen({ user, onLogout, onSendSupport, supportMe
   if (supportOpen) {
     return (
       <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ padding: "14px var(--page-px)", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => setSupportOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--taxi-yellow)" }}>
             <Icon name="ArrowLeft" size={20} />
           </button>
@@ -64,7 +64,7 @@ export default function ProfileScreen({ user, onLogout, onSendSupport, supportMe
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "var(--page-px)", display: "flex", flexDirection: "column", gap: 10 }}>
           {myMessages.length === 0 && (
             <div style={{ textAlign: "center", color: "var(--taxi-muted)", fontSize: 13, marginTop: 40 }}>Напишите в поддержку</div>
           )}
@@ -88,7 +88,7 @@ export default function ProfileScreen({ user, onLogout, onSendSupport, supportMe
           ))}
         </div>
 
-        <div style={{ padding: "12px 20px", paddingBottom: 80, borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
+        <div style={{ padding: "12px var(--page-px)", paddingBottom: 80, borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
           <input className="taxi-input" placeholder="Напишите сообщение..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendMessage()} style={{ flex: 1 }} />
           <button onClick={sendMessage} style={{ width: 50, height: 50, background: "var(--taxi-yellow)", border: "none", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
             <Icon name="Send" size={20} color="var(--taxi-dark)" />
@@ -100,12 +100,12 @@ export default function ProfileScreen({ user, onLogout, onSendSupport, supportMe
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
-      <div style={{ padding: "24px 24px 28px", background: "linear-gradient(180deg, var(--taxi-card) 0%, var(--taxi-dark) 100%)" }}>
+      <div style={{ padding: "var(--page-pt) var(--page-px) 24px", background: "linear-gradient(180deg, var(--taxi-card) 0%, var(--taxi-dark) 100%)" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
           <div style={{ position: "relative" }}>
-            <div style={{ width: 90, height: 90, background: "var(--taxi-yellow)", borderRadius: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 42 }}>
+            <div style={{ width: 80, height: 80, background: "var(--taxi-yellow)", borderRadius: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 42 }}>
               {user.avatar ? (
-                <img src={user.avatar} alt="" style={{ width: 90, height: 90, borderRadius: 28, objectFit: "cover" }} />
+                <img src={user.avatar} alt="" style={{ width: 80, height: 80, borderRadius: 28, objectFit: "cover" }} />
               ) : (
                 <Icon name="User" size={42} color="var(--taxi-dark)" />
               )}
@@ -122,7 +122,7 @@ export default function ProfileScreen({ user, onLogout, onSendSupport, supportMe
         </div>
       </div>
 
-      <div style={{ flex: 1, padding: "0 24px", paddingBottom: 80 }}>
+      <div style={{ flex: 1, padding: "0 var(--page-px)", paddingBottom: 80 }}>
         <button
           onClick={() => setSupportOpen(true)}
           className="animate-fade-slide-up"

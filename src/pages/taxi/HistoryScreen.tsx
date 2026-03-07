@@ -17,14 +17,14 @@ export default function HistoryScreen({ orders, onRepeat }: Props) {
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
-      <div style={{ padding: "20px 24px 0" }}>
-        <h1 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 24, color: "#F0F2F5", marginBottom: 4 }}>
+      <div style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
+        <h1 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 22, color: "#F0F2F5", marginBottom: 4 }}>
           История поездок
         </h1>
         <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Все ваши поездки</p>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 24px", paddingBottom: 80 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px var(--page-px)", paddingBottom: 80 }}>
         {completed.length === 0 ? (
           <div style={{ textAlign: "center", marginTop: 60 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>

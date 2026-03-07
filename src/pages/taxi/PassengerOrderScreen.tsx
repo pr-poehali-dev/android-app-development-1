@@ -203,7 +203,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
 
       {chatOpen && (
         <div style={{ position: "absolute", inset: 0, zIndex: 300, background: "var(--taxi-dark)", display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ padding: "14px var(--page-px)", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={() => setChatOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--taxi-yellow)" }}>
               <Icon name="ArrowLeft" size={20} />
             </button>
@@ -213,7 +213,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
               <div style={{ fontSize: 11, color: "var(--taxi-green)" }}>Онлайн</div>
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: "var(--page-px)", display: "flex", flexDirection: "column", gap: 10 }}>
             {chatMessages.length === 0 && (
               <div style={{ textAlign: "center", color: "var(--taxi-muted)", fontSize: 13, marginTop: 40 }}>Напишите водителю</div>
             )}
@@ -228,7 +228,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
               </div>
             ))}
           </div>
-          <div style={{ padding: "12px 20px 24px", borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
+          <div style={{ padding: "12px var(--page-px) 24px", borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
             <input className="taxi-input" placeholder="Сообщение..." value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChatMessage()} style={{ flex: 1 }} />
             <button onClick={sendChatMessage} style={{ width: 50, height: 50, background: "var(--taxi-yellow)", border: "none", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <Icon name="Send" size={20} color="var(--taxi-dark)" fallback="ArrowRight" />
@@ -239,7 +239,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
 
       {step === "rating" && activeOrder && (
         <div style={{ position: "absolute", inset: 0, zIndex: 50, background: "var(--taxi-dark)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32 }} className="animate-fade-slide-up">
-          <img src={LOGO_URL} alt="" style={{ width: 64, height: 64, borderRadius: 18, objectFit: "cover", marginBottom: 16 }} />
+          <img src={LOGO_URL} alt="" style={{ width: 64, height: 64, borderRadius: "var(--card-radius)", objectFit: "cover", marginBottom: 16 }} />
           <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", textAlign: "center", marginBottom: 6 }}>
             Спасибо, что выбрали Антипиха Taxi!
           </div>
@@ -257,7 +257,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
               <button key={star}
                 onMouseEnter={() => setHoverStar(star)} onMouseLeave={() => setHoverStar(0)}
                 onClick={() => setSelectedStar(star)}
-                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 40, transition: "transform 0.15s", transform: (hoverStar >= star || selectedStar >= star) ? "scale(1.15)" : "scale(1)", filter: (hoverStar >= star || selectedStar >= star) ? "none" : "grayscale(1) opacity(0.3)" }}>
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: "var(--star-size)", transition: "transform 0.15s", transform: (hoverStar >= star || selectedStar >= star) ? "scale(1.15)" : "scale(1)", filter: (hoverStar >= star || selectedStar >= star) ? "none" : "grayscale(1) opacity(0.3)" }}>
                 ⭐
               </button>
             ))}
@@ -273,7 +273,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
 
         {step === "searching" && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "rgba(13,15,20,0.8)", backdropFilter: "blur(4px)" }}>
-            <div className="taxi-card" style={{ padding: 20, textAlign: "center", maxWidth: 300 }}>
+            <div className="taxi-card" style={{ padding: "var(--page-px)", textAlign: "center", maxWidth: "min(300px, 85vw)" }}>
               <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginBottom: 8 }}>
                 {isDelivery ? `Доставка: ${deliveryAddress}` : `${from} → ${to}`}
               </div>
@@ -309,7 +309,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
         {step === "found" && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ flex: 1 }} />
-            <div style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", padding: 20, borderTop: "1px solid var(--taxi-border)" }}>
+            <div style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", padding: "var(--page-px)", borderTop: "1px solid var(--taxi-border)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
                 <span className="animate-blink" style={{ color: "var(--taxi-green)" }}>●</span>
                 <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "#F0F2F5" }}>Водитель найден</span>
@@ -343,7 +343,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
         {step === "arrived" && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ flex: 1 }} />
-            <div style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", padding: 20, borderTop: "2px solid var(--taxi-green)" }}>
+            <div style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", padding: "var(--page-px)", borderTop: "2px solid var(--taxi-green)" }}>
               <div style={{ textAlign: "center", marginBottom: 14 }}>
                 <div style={{ fontSize: 36, marginBottom: 8 }}>🚕</div>
                 <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 16, color: "var(--taxi-green)" }}>К вам подъехал автомобиль</div>
@@ -392,7 +392,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       </div>
 
       {step === "form" && (
-        <div style={{ background: "var(--taxi-card)", borderRadius: "24px 24px 0 0", borderTop: "1px solid var(--taxi-border)", padding: "16px 20px", paddingBottom: 80, overflowY: "auto", maxHeight: "calc(100% - 200px)" }}>
+        <div style={{ background: "var(--taxi-card)", borderRadius: "24px 24px 0 0", borderTop: "1px solid var(--taxi-border)", padding: "16px var(--page-px)", paddingBottom: 80, overflowY: "auto", maxHeight: "calc(100% - 200px)" }}>
           <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
             {TARIFFS.map((t) => (
               <button key={t.id} onClick={() => setTariff(t.id)}
