@@ -102,11 +102,11 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
         <div className="map-road" style={{ height: 2, width: "100%", top: "70%", left: 0, opacity: 0.3 }} />
         <div className="flex flex-col items-center gap-3 animate-fade-slide-up" style={{ zIndex: 1 }}>
           <div className="animate-pulse-glow" style={{ width: 72, height: 72, borderRadius: 22, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <img src={LOGO_URL} alt="Sovyonok Tax" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 22 }} />
+            <img src={LOGO_URL} alt="Антипиха Taxi" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 22 }} />
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: "Montserrat", fontWeight: 900, fontSize: 22, color: "#F0F2F5" }}>
-              Sovyonok <span style={{ color: "var(--taxi-yellow)" }}>Tax</span>
+              Антипиха <span style={{ color: "var(--taxi-yellow)" }}>Taxi</span>
             </div>
             <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginTop: 2 }}>Быстро. Надёжно. Безопасно.</div>
           </div>

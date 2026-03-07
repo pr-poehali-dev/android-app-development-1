@@ -115,7 +115,7 @@ export default function DriverScreen({
       )[0];
       setAutoAssignOffer(nearest);
       playNotificationSound("order");
-      sendPush("Sovyonok Tax", "Новый заказ!");
+      sendPush("Антипиха Taxi", "Новый заказ!");
     }
   }, [orders, driver.autoAssign, isRestricted, myOrder, carFilled, autoAssignOffer, canWork]);
 

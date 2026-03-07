@@ -58,11 +58,11 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       setEtaMinutes(Math.floor(Math.random() * 6) + 3);
       showToast("Водитель найден!", "Едет к вам");
       playNotificationSound("arrive");
-      sendPush("Sovyonok Tax", "Водитель найден и едет к вам!");
+      sendPush("Антипиха Taxi", "Водитель найден и едет к вам!");
     }
     if (step === "arrived") {
       playNotificationSound("arrive");
-      sendPush("Sovyonok Tax", "Водитель на месте!");
+      sendPush("Антипиха Taxi", "Водитель на месте!");
     }
   }, [step]);
 
@@ -241,7 +241,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
         <div style={{ position: "absolute", inset: 0, zIndex: 50, background: "var(--taxi-dark)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32 }} className="animate-fade-slide-up">
           <img src={LOGO_URL} alt="" style={{ width: 64, height: 64, borderRadius: 18, objectFit: "cover", marginBottom: 16 }} />
           <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", textAlign: "center", marginBottom: 6 }}>
-            Спасибо, что выбрали Sovyonok Tax!
+            Спасибо, что выбрали Антипиха Taxi!
           </div>
           <div style={{ fontSize: 14, color: "var(--taxi-muted)", textAlign: "center", marginBottom: 24, lineHeight: 1.5 }}>
             Пожалуйста, оцените водителя
