@@ -54,6 +54,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [tips, setTips] = useState(0);
   const [pickMode, setPickMode] = useState<"from" | "to" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: string; action: () => void } | null>(null);
 
   const showToast = (text: string, sub?: string) => {
     setToast({ text, sub });
@@ -79,15 +80,29 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        if (window.ymaps) {
-          const res = await window.ymaps.geocode([latitude, longitude], { results: 1 }).catch(() => null);
-          const obj = res?.geoObjects.get(0);
-          if (obj) setFrom(obj.getAddressLine());
+        try {
+          await new Promise<void>((resolve) => {
+            if (window.ymaps) window.ymaps.ready(() => resolve());
+            else resolve();
+          });
+          if (window.ymaps) {
+            const res = await window.ymaps.geocode([latitude, longitude], { results: 1 });
+            const obj = res?.geoObjects?.get(0);
+            if (obj) setFrom(obj.getAddressLine());
+            else setFrom(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+          } else {
+            setFrom(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+          }
+        } catch {
+          setFrom(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
         }
         setLocating(false);
       },
-      () => setLocating(false),
-      { timeout: 8000 }
+      () => {
+        setLocating(false);
+        showToast("Не удалось определить", "Разрешите доступ к геолокации");
+      },
+      { timeout: 10000, enableHighAccuracy: true }
     );
   };
 
@@ -219,6 +234,36 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
         </div>
       )}
 
+      {confirmAction && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 250, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--page-px)" }}>
+          <div className="taxi-card animate-fade-slide-up" style={{ maxWidth: 320, width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>
+              {confirmAction.type === "cancel" ? "\u26A0\uFE0F" : "\uD83D\uDE96"}
+            </div>
+            <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "#F0F2F5", marginBottom: 6 }}>
+              {confirmAction.type === "cancel" ? "Отменить заказ?" : confirmAction.type === "order" ? "Подтвердить заказ?" : "Подтвердить?"}
+            </div>
+            <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16, lineHeight: 1.5 }}>
+              {confirmAction.type === "cancel" ? "Вы уверены, что хотите отменить заказ?" : confirmAction.type === "order" ? `Маршрут: ${routeLabel}\nСтоимость: ≈ ${calcPrice()} ₽` : "Подтвердите действие"}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setConfirmAction(null)}
+                style={{ flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "var(--taxi-muted)", fontSize: 14, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}
+              >
+                Назад
+              </button>
+              <button
+                onClick={() => { confirmAction.action(); setConfirmAction(null); }}
+                style={{ flex: 1, padding: "12px", background: confirmAction.type === "cancel" ? "rgba(239,68,68,0.2)" : "var(--taxi-yellow)", border: confirmAction.type === "cancel" ? "1px solid rgba(239,68,68,0.4)" : "none", borderRadius: 12, color: confirmAction.type === "cancel" ? "var(--taxi-red)" : "var(--taxi-dark)", fontSize: 14, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 700 }}
+              >
+                {confirmAction.type === "cancel" ? "Отменить" : "Да, заказать"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {chatOpen && (
         <div style={{ position: "absolute", inset: 0, zIndex: 300, background: "var(--taxi-dark)", display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "14px var(--page-px)", borderBottom: "1px solid var(--taxi-border)", display: "flex", alignItems: "center", gap: 12 }}>
@@ -288,7 +333,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
         </div>
       )}
 
-      <div style={{ flex: step === "form" ? "0 0 200px" : 1, position: "relative", overflow: "hidden", transition: "flex 0.4s" }}>
+      <div style={{ flex: step === "form" ? (pickMode ? "1 1 60%" : "0 0 200px") : 1, position: "relative", overflow: "hidden", transition: "flex 0.4s" }}>
         <YandexMap fromAddress={isDelivery ? "" : from} toAddress={isDelivery ? deliveryAddress : to} height="100%" pickMode={step === "form" ? pickMode : null} onMapPick={handleMapPick} />
 
         {step === "searching" && (
@@ -308,7 +353,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
             </div>
             <div style={{ width: 56, height: 56, border: "3px solid var(--taxi-border)", borderTop: "3px solid var(--taxi-yellow)", borderRadius: "50%", animation: "spin-slow 1s linear infinite" }} />
             <div style={{ color: "#F0F2F5", fontFamily: "Montserrat", fontWeight: 600, fontSize: 14 }}>Ищем водителя...</div>
-            <button onClick={handleCancel} style={{ background: "transparent", border: "1px solid var(--taxi-red)", borderRadius: 12, padding: "10px 24px", color: "var(--taxi-red)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
+            <button onClick={() => setConfirmAction({ type: "cancel", action: handleCancel })} style={{ background: "transparent", border: "1px solid var(--taxi-red)", borderRadius: 12, padding: "10px 24px", color: "var(--taxi-red)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
               Отменить
             </button>
           </div>
@@ -317,28 +362,61 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
         {step === "found" && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ flex: 1 }} />
-            <div style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", padding: "var(--page-px)", borderTop: "1px solid var(--taxi-border)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <div className="animate-fade-slide-up" style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", padding: "var(--page-px)", borderTop: "1px solid var(--taxi-border)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
                 <span className="animate-blink" style={{ color: "var(--taxi-green)" }}>●</span>
-                <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "#F0F2F5" }}>Водитель найден</span>
-                <span style={{ marginLeft: "auto", fontFamily: "Montserrat", fontWeight: 700, fontSize: 13, color: "var(--taxi-yellow)" }}>~{etaMinutes} мин</span>
+                <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "#F0F2F5" }}>Водитель найден</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, padding: "10px 0", borderTop: "1px solid var(--taxi-border)", borderBottom: "1px solid var(--taxi-border)" }}>
-                <div style={{ width: 44, height: 44, background: "var(--taxi-yellow)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🚗</div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: "var(--taxi-surface)", borderRadius: 14, marginBottom: 12 }}>
+                <div style={{ width: 50, height: 50, background: "var(--taxi-yellow)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🚗</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "#F0F2F5" }}>{assignedDriver?.name ?? "Водитель"}</div>
+                  <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "#F0F2F5" }}>{assignedDriver?.name ?? "Водитель"}</div>
                   <div style={{ fontSize: 12, color: "var(--taxi-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{assignedDriver?.car ?? ""}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    <span style={{ color: "var(--taxi-yellow)", fontSize: 12, fontWeight: 700 }}>★ {assignedDriver?.rating ?? "4.8"}</span>
+                    <span style={{ fontSize: 11, color: "var(--taxi-muted)" }}>{assignedDriver?.tripsCount ?? 0} поездок</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: "center", flexShrink: 0 }}>
+                  <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 22, color: "var(--taxi-yellow)" }}>{activeOrder?.etaMinutes ?? etaMinutes}</div>
+                  <div style={{ fontSize: 10, color: "var(--taxi-muted)", marginTop: -2 }}>мин</div>
                 </div>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: "var(--taxi-muted)" }}>{routeLabel}</div>
-                <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "var(--taxi-yellow)" }}>{calcPrice()} ₽</div>
+
+              <div style={{ padding: "10px 12px", background: "var(--taxi-surface)", borderRadius: 12, marginBottom: 12 }}>
+                <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
+                    <div style={{ width: 8, height: 8, background: "var(--taxi-green)", borderRadius: "50%" }} />
+                    <div style={{ width: 1, height: 16, background: "var(--taxi-border)", margin: "2px 0" }} />
+                    <div style={{ width: 8, height: 8, background: "var(--taxi-yellow)", borderRadius: 2 }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: "#F0F2F5", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeOrder?.from || from}</div>
+                    <div style={{ fontSize: 13, color: "var(--taxi-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeOrder?.to || to}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--taxi-border)", paddingTop: 8, marginTop: 4 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--taxi-card)", borderRadius: 6, color: "var(--taxi-muted)" }}>{currentDistanceKm} км</span>
+                    {activeOrder?.options.children && <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--taxi-card)", borderRadius: 6, color: "var(--taxi-yellow)" }}>👶 {activeOrder.options.childrenCount}</span>}
+                    {activeOrder?.options.luggage && <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--taxi-card)", borderRadius: 6, color: "var(--taxi-yellow)" }}>🧳</span>}
+                  </div>
+                  <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "var(--taxi-yellow)" }}>{calcPrice()} ₽</div>
+                </div>
               </div>
+
+              {activeOrder?.options.comment && (
+                <div style={{ padding: "8px 12px", background: "var(--taxi-surface)", borderRadius: 10, fontSize: 12, color: "var(--taxi-muted)", marginBottom: 12, fontStyle: "italic" }}>
+                  {activeOrder.options.comment}
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setChatOpen(true)} style={{ flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <button onClick={() => setChatOpen(true)} style={{ flex: 1, padding: "13px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <Icon name="MessageCircle" size={16} color="var(--taxi-yellow)" /> Чат
                 </button>
-                <button onClick={handleCancel} style={{ flex: 1, padding: "12px", background: "transparent", border: "1px solid var(--taxi-red)", borderRadius: 12, color: "var(--taxi-red)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
+                <button onClick={() => setConfirmAction({ type: "cancel", action: handleCancel })} style={{ flex: 1, padding: "13px", background: "transparent", border: "1px solid var(--taxi-red)", borderRadius: 12, color: "var(--taxi-red)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
                   Отменить
                 </button>
               </div>
@@ -349,20 +427,49 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
         {step === "arrived" && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ flex: 1 }} />
-            <div style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", padding: "var(--page-px)", borderTop: "2px solid var(--taxi-green)" }}>
-              <div style={{ textAlign: "center", marginBottom: 12 }}>
-                <div style={{ fontSize: 32, marginBottom: 6 }}>🚕</div>
-                <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 15, color: "var(--taxi-green)" }}>Подъехал автомобиль</div>
+            <div className="animate-fade-slide-up" style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", padding: "var(--page-px)", borderTop: "2px solid var(--taxi-green)" }}>
+              <div style={{ textAlign: "center", marginBottom: 14 }}>
+                <div style={{ fontSize: 36, marginBottom: 6 }}>🚕</div>
+                <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 16, color: "var(--taxi-green)" }}>Вас ожидает</div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderTop: "1px solid var(--taxi-border)", borderBottom: "1px solid var(--taxi-border)", marginBottom: 10 }}>
-                <div style={{ width: 44, height: 44, background: "var(--taxi-yellow)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🚗</div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: "var(--taxi-surface)", borderRadius: 14, marginBottom: 12 }}>
+                <div style={{ width: 50, height: 50, background: "var(--taxi-yellow)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🚗</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "#F0F2F5" }}>{assignedDriver?.name ?? "Водитель"}</div>
+                  <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "#F0F2F5" }}>{assignedDriver?.name ?? "Водитель"}</div>
                   <div style={{ fontSize: 12, color: "var(--taxi-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{assignedDriver?.car ?? ""}</div>
                 </div>
-                <div style={{ color: "var(--taxi-yellow)", fontSize: 13, fontWeight: 700 }}>★ {assignedDriver?.rating ?? "4.8"}</div>
+                <div style={{ color: "var(--taxi-yellow)", fontSize: 14, fontWeight: 700 }}>★ {assignedDriver?.rating ?? "4.8"}</div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginBottom: 10 }}>Приблизительно в пути: ~{currentDistanceKm * 2} мин</div>
+
+              <div style={{ padding: "10px 12px", background: "var(--taxi-surface)", borderRadius: 12, marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: "var(--taxi-muted)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Заказ</div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
+                    <div style={{ width: 8, height: 8, background: "var(--taxi-green)", borderRadius: "50%" }} />
+                    <div style={{ width: 1, height: 16, background: "var(--taxi-border)", margin: "2px 0" }} />
+                    <div style={{ width: 8, height: 8, background: "var(--taxi-yellow)", borderRadius: 2 }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: "#F0F2F5", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeOrder?.from || from}</div>
+                    <div style={{ fontSize: 13, color: "var(--taxi-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeOrder?.to || to}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--taxi-border)", paddingTop: 8 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--taxi-card)", borderRadius: 6, color: "var(--taxi-muted)" }}>{currentDistanceKm} км</span>
+                    {activeOrder?.options.children && <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--taxi-card)", borderRadius: 6, color: "var(--taxi-yellow)" }}>👶 {activeOrder.options.childrenCount}</span>}
+                    {activeOrder?.options.luggage && <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--taxi-card)", borderRadius: 6, color: "var(--taxi-yellow)" }}>🧳</span>}
+                  </div>
+                  <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "var(--taxi-yellow)" }}>{calcPrice()} ₽</div>
+                </div>
+                {activeOrder?.options.comment && (
+                  <div style={{ marginTop: 8, padding: "6px 10px", background: "var(--taxi-card)", borderRadius: 8, fontSize: 12, color: "var(--taxi-muted)", fontStyle: "italic" }}>
+                    {activeOrder.options.comment}
+                  </div>
+                )}
+              </div>
+
               <button onClick={() => setChatOpen(true)} style={{ width: "100%", padding: "13px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 <Icon name="MessageCircle" size={16} color="var(--taxi-yellow)" /> Написать водителю
               </button>
@@ -565,7 +672,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
             <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "var(--taxi-yellow)" }}>≈ {calcPrice()} ₽</div>
           </div>
 
-          <button className="btn-yellow" onClick={handleOrder} disabled={!canOrder} style={{ opacity: canOrder ? 1 : 0.5 }}>
+          <button className="btn-yellow" onClick={() => setConfirmAction({ type: "order", action: handleOrder })} disabled={!canOrder} style={{ opacity: canOrder ? 1 : 0.5 }}>
             {isDelivery ? "Заказать доставку" : isCargo ? "Заказать грузовое" : "Заказать такси"}
           </button>
         </div>

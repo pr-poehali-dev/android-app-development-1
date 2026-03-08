@@ -76,6 +76,7 @@ export default function DriverScreen({
   const [autoAssignOffer, setAutoAssignOffer] = useState<Order | null>(null);
   const declinedOrdersRef = useRef<Set<string>>(new Set());
   const [supportOpen, setSupportOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ type: string; action: () => void } | null>(null);
   const [supportInput, setSupportInput] = useState("");
   const prevSupportCountRef = useRef(supportMessages.length);
   const [driverChatMessages, setDriverChatMessages] = useState<{id: number; driverId: string; driverName: string; text: string; time: string; timestamp: number}[]>([]);
@@ -328,7 +329,7 @@ export default function DriverScreen({
             </button>
           </div>
           <button
-            onClick={() => handleAcceptFromEta(etaSelect.orderId, etaMinutes)}
+            onClick={() => setConfirmAction({ type: "accept", action: () => handleAcceptFromEta(etaSelect.orderId, etaMinutes) })}
             style={{
               width: "100%", padding: "14px", background: "var(--taxi-yellow)", border: "none",
               borderRadius: 14, color: "var(--taxi-dark)", fontFamily: "Montserrat", fontWeight: 700,
@@ -342,6 +343,29 @@ export default function DriverScreen({
             Назад
           </button>
         </div>
+        {confirmAction && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--page-px)" }}>
+            <div className="taxi-card animate-fade-slide-up" style={{ maxWidth: 320, width: "100%", textAlign: "center" }}>
+              <div style={{ fontSize: 28, marginBottom: 10 }}>
+                {confirmAction.type === "cancel" ? "\u26A0\uFE0F" : confirmAction.type === "accept" ? "\uD83D\uDE96" : confirmAction.type === "done" ? "\u2705" : "\u2753"}
+              </div>
+              <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "#F0F2F5", marginBottom: 6 }}>
+                {confirmAction.type === "cancel" ? "Отменить заказ?" : confirmAction.type === "accept" ? "Принять заказ?" : confirmAction.type === "done" ? "Завершить поездку?" : "Подтвердить?"}
+              </div>
+              <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>
+                {confirmAction.type === "cancel" ? "Вы уверены, что хотите отменить?" : confirmAction.type === "accept" ? "Подтвердите принятие заказа" : confirmAction.type === "done" ? "Поездка будет завершена" : "Подтвердите действие"}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setConfirmAction(null)} style={{ flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "var(--taxi-muted)", fontSize: 14, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
+                  Назад
+                </button>
+                <button onClick={() => { confirmAction.action(); setConfirmAction(null); }} style={{ flex: 1, padding: "12px", background: confirmAction.type === "cancel" ? "rgba(239,68,68,0.2)" : "var(--taxi-yellow)", border: confirmAction.type === "cancel" ? "1px solid rgba(239,68,68,0.4)" : "none", borderRadius: 12, color: confirmAction.type === "cancel" ? "var(--taxi-red)" : "var(--taxi-dark)", fontSize: 14, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 700 }}>
+                  {confirmAction.type === "cancel" ? "Да, отменить" : "Подтвердить"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -551,9 +575,15 @@ export default function DriverScreen({
                 </button>
               </div>
 
-              <RideActionButtons order={myOrder} onStatusChange={handleStatusChange} />
+              <RideActionButtons order={myOrder} onStatusChange={(orderId, status) => {
+                if (status === "done") {
+                  setConfirmAction({ type: "done", action: () => handleStatusChange(orderId, status) });
+                } else {
+                  handleStatusChange(orderId, status);
+                }
+              }} />
 
-              <button onClick={() => handleCancelOrder(myOrder.id)}
+              <button onClick={() => setConfirmAction({ type: "cancel", action: () => handleCancelOrder(myOrder.id) })}
                 style={{
                   width: "100%", padding: "12px", background: "transparent", border: "1px solid var(--taxi-red)",
                   borderRadius: 14, color: "var(--taxi-red)", fontFamily: "Montserrat", fontWeight: 600,
@@ -564,12 +594,58 @@ export default function DriverScreen({
             </div>
           </>
         )}
+        {confirmAction && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--page-px)" }}>
+            <div className="taxi-card animate-fade-slide-up" style={{ maxWidth: 320, width: "100%", textAlign: "center" }}>
+              <div style={{ fontSize: 28, marginBottom: 10 }}>
+                {confirmAction.type === "cancel" ? "\u26A0\uFE0F" : confirmAction.type === "accept" ? "\uD83D\uDE96" : confirmAction.type === "done" ? "\u2705" : "\u2753"}
+              </div>
+              <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "#F0F2F5", marginBottom: 6 }}>
+                {confirmAction.type === "cancel" ? "Отменить заказ?" : confirmAction.type === "accept" ? "Принять заказ?" : confirmAction.type === "done" ? "Завершить поездку?" : "Подтвердить?"}
+              </div>
+              <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>
+                {confirmAction.type === "cancel" ? "Вы уверены, что хотите отменить?" : confirmAction.type === "accept" ? "Подтвердите принятие заказа" : confirmAction.type === "done" ? "Поездка будет завершена" : "Подтвердите действие"}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setConfirmAction(null)} style={{ flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "var(--taxi-muted)", fontSize: 14, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
+                  Назад
+                </button>
+                <button onClick={() => { confirmAction.action(); setConfirmAction(null); }} style={{ flex: 1, padding: "12px", background: confirmAction.type === "cancel" ? "rgba(239,68,68,0.2)" : "var(--taxi-yellow)", border: confirmAction.type === "cancel" ? "1px solid rgba(239,68,68,0.4)" : "none", borderRadius: 12, color: confirmAction.type === "cancel" ? "var(--taxi-red)" : "var(--taxi-dark)", fontSize: 14, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 700 }}>
+                  {confirmAction.type === "cancel" ? "Да, отменить" : "Подтвердить"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
+      {confirmAction && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--page-px)" }}>
+          <div className="taxi-card animate-fade-slide-up" style={{ maxWidth: 320, width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>
+              {confirmAction.type === "cancel" ? "\u26A0\uFE0F" : confirmAction.type === "accept" ? "\uD83D\uDE96" : confirmAction.type === "done" ? "\u2705" : "\u2753"}
+            </div>
+            <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "#F0F2F5", marginBottom: 6 }}>
+              {confirmAction.type === "cancel" ? "Отменить заказ?" : confirmAction.type === "accept" ? "Принять заказ?" : confirmAction.type === "done" ? "Завершить поездку?" : "Подтвердить?"}
+            </div>
+            <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>
+              {confirmAction.type === "cancel" ? "Вы уверены, что хотите отменить?" : confirmAction.type === "accept" ? "Подтвердите принятие заказа" : confirmAction.type === "done" ? "Поездка будет завершена" : "Подтвердите действие"}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setConfirmAction(null)} style={{ flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "var(--taxi-muted)", fontSize: 14, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
+                Назад
+              </button>
+              <button onClick={() => { confirmAction.action(); setConfirmAction(null); }} style={{ flex: 1, padding: "12px", background: confirmAction.type === "cancel" ? "rgba(239,68,68,0.2)" : "var(--taxi-yellow)", border: confirmAction.type === "cancel" ? "1px solid rgba(239,68,68,0.4)" : "none", borderRadius: 12, color: confirmAction.type === "cancel" ? "var(--taxi-red)" : "var(--taxi-dark)", fontSize: 14, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 700 }}>
+                {confirmAction.type === "cancel" ? "Да, отменить" : "Подтвердить"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {tab !== "chat" && (
         <div style={{ flex: 1, overflowY: "auto", paddingBottom: 80 }}>
           {tab === "profile" && (
