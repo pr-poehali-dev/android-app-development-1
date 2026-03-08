@@ -132,9 +132,14 @@ export default function App() {
 
   const handleAddDriver = async (d: Driver) => {
     setDrivers((prev) => [...prev, d]);
-    const res = await api.addDriver(d as unknown as Record<string, unknown>);
-    if (!res || res.error) {
+    let res = await api.addDriver(d as unknown as Record<string, unknown>);
+    if (!res) {
+      await new Promise((r) => setTimeout(r, 3000));
+      res = await api.addDriver(d as unknown as Record<string, unknown>);
+    }
+    if (res && res.error) {
       setDrivers((prev) => prev.filter((dr) => dr.id !== d.id));
+    } else if (res && res.ok) {
       loadFromDb();
     }
   };
