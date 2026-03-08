@@ -48,6 +48,8 @@ export interface Order {
   cancelledBy?: "passenger" | "driver" | "admin";
   scheduledAt?: string;
   waitingMinutes?: number;
+  fromLat?: number | null;
+  fromLng?: number | null;
 }
 
 export interface DriverCarInfo {
@@ -83,6 +85,8 @@ export interface Driver {
   totalEarnings: number;
   totalKm: number;
   totalHours: number;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface AppSettings {

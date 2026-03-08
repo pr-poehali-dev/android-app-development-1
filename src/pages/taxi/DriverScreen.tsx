@@ -88,6 +88,19 @@ export default function DriverScreen({
   const subDays = subscriptionDaysLeft(driver);
   const canWork = subActive || driver.freeWork;
 
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    const sendLocation = (pos: GeolocationPosition) => {
+      api.updateDriverLocation(driver.id, pos.coords.latitude, pos.coords.longitude);
+    };
+    const watchId = navigator.geolocation.watchPosition(sendLocation, () => {}, {
+      enableHighAccuracy: true,
+      maximumAge: 30000,
+      timeout: 15000,
+    });
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [driver.id]);
+
   const myOrder = orders.find(
     (o) => o.driverId === driver.id && !["done", "cancelled"].includes(o.status)
   );
@@ -140,14 +153,33 @@ export default function DriverScreen({
       (o) => o.status === "pending" && !o.driverId && !declinedOrdersRef.current.has(o.id)
     );
     if (pendingOrders.length > 0 && !autoAssignOffer) {
-      const nearest = pendingOrders.sort(
-        (a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0)
-      )[0];
-      setAutoAssignOffer(nearest);
-      playNotificationSound("order");
-      sendPush("Taxi", "Новый заказ!");
+      const toRad = (d: number) => (d * Math.PI) / 180;
+      const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+        const R = 6371;
+        const dLat = toRad(lat2 - lat1);
+        const dLng = toRad(lng2 - lng1);
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      };
+      const dLat = driver.lat;
+      const dLng = driver.lng;
+      const withDist = pendingOrders.map((o) => {
+        let dist = 999;
+        if (dLat != null && dLng != null && o.fromLat != null && o.fromLng != null) {
+          dist = haversine(dLat, dLng, o.fromLat, o.fromLng);
+        }
+        return { order: o, dist };
+      });
+      const radiusKm = settings.autoAssignRadiusKm || 50;
+      const inRadius = withDist.filter((w) => w.dist <= radiusKm);
+      const nearest = (inRadius.length > 0 ? inRadius : withDist).sort((a, b) => a.dist - b.dist)[0];
+      if (nearest) {
+        setAutoAssignOffer(nearest.order);
+        playNotificationSound("order");
+        sendPush("Taxi", "Новый заказ!");
+      }
     }
-  }, [orders, driver.autoAssign, isRestricted, myOrder, carFilled, autoAssignOffer, canWork]);
+  }, [orders, driver.autoAssign, driver.lat, driver.lng, isRestricted, myOrder, carFilled, autoAssignOffer, canWork, settings.autoAssignRadiusKm]);
 
   useEffect(() => {
     const loadChat = async () => {

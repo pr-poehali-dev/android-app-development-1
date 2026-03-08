@@ -313,21 +313,40 @@ export default function AdminScreen({
   };
 
   const handleAutoAssign = (order: Order) => {
-    const available = drivers.filter(
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+      const R = 6371;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+    const radiusKm = settings.autoAssignRadiusKm || 50;
+    const all = drivers.filter(
       (d) => d.status === "active" && isSubscriptionActive(d) && d.autoAssign
     );
-    if (available.length === 0) return;
-    let chosen: Driver;
+    if (all.length === 0) return;
+    const withDist = all.map((d) => {
+      let dist = 999;
+      if (d.lat != null && d.lng != null && order.fromLat != null && order.fromLng != null) {
+        dist = haversine(d.lat, d.lng, order.fromLat, order.fromLng);
+      }
+      return { driver: d, dist };
+    });
+    const inRadius = withDist.filter((w) => w.dist <= radiusKm);
+    const pool = inRadius.length > 0 ? inRadius : withDist;
+    let chosen: { driver: Driver; dist: number };
     if (settings.autoAssignMode === "rating") {
-      chosen = available.sort((a, b) => b.rating - a.rating)[0];
+      chosen = pool.sort((a, b) => b.driver.rating - a.driver.rating || a.dist - b.dist)[0];
     } else if (settings.autoAssignMode === "trips") {
-      chosen = available.sort((a, b) => b.tripsCount - a.tripsCount)[0];
+      chosen = pool.sort((a, b) => b.driver.tripsCount - a.driver.tripsCount || a.dist - b.dist)[0];
     } else {
-      chosen = available.sort((a, b) => (b.hasAds ? 1 : 0) - (a.hasAds ? 1 : 0) || b.rating - a.rating)[0];
+      chosen = pool.sort((a, b) => (b.driver.hasAds ? 1 : 0) - (a.driver.hasAds ? 1 : 0) || a.dist - b.dist)[0];
     }
-    onAcceptOrder(order.id, chosen.id, chosen.name, 5);
+    const etaMin = Math.max(3, Math.round(chosen.dist * 2));
+    onAcceptOrder(order.id, chosen.driver.id, chosen.driver.name, etaMin);
     playNotificationSound("order");
-    sendPush("Авто-назначение", `Заказ ${order.from} → ${order.to} назначен на ${chosen.name}`);
+    sendPush("Авто-назначение", `Заказ ${order.from} → ${order.to} назначен на ${chosen.driver.name}`);
     setOrderModal(null);
   };
 

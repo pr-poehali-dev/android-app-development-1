@@ -90,17 +90,29 @@ def handler(event, context):
             sm = [fmt_sup(r) for r in cur.fetchall()]
             return ok({'settings': st, 'drivers': dr, 'orders': od, 'passengers': pa, 'supportMessages': sm})
 
+        if act == 'update-driver-location':
+            did = e(b.get('driverId', ''))
+            lat = b.get('lat')
+            lng = b.get('lng')
+            if did and lat is not None and lng is not None:
+                cur.execute("UPDATE drivers SET lat=%s,lng=%s,location_updated_at=NOW() WHERE id='%s'" % (float(lat), float(lng), did))
+            return ok({'ok': True})
+
         if act == 'create-order':
             o = b
             op = o.get('options', {})
-            cur.execute("INSERT INTO orders(id,passenger_id,passenger_name,passenger_phone,from_address,to_address,tariff,children,children_count,luggage,comment,delivery_description,cargo_description,status,payment_method,tips,discount,distance_km,price,scheduled_at,free_at) VALUES('%s','%s','%s','%s','%s','%s','%s',%s,%s,%s,'%s',%s,%s,'pending','%s',%s,%s,%s,%s,%s,NOW())" % (
+            from_lat = o.get('fromLat')
+            from_lng = o.get('fromLng')
+            cur.execute("INSERT INTO orders(id,passenger_id,passenger_name,passenger_phone,from_address,to_address,tariff,children,children_count,luggage,comment,delivery_description,cargo_description,status,payment_method,tips,discount,distance_km,price,scheduled_at,free_at,from_lat,from_lng) VALUES('%s','%s','%s','%s','%s','%s','%s',%s,%s,%s,'%s',%s,%s,'pending','%s',%s,%s,%s,%s,%s,NOW(),%s,%s)" % (
                 e(o['id']), e(o['passengerId']), e(o['passengerName']), e(o.get('passengerPhone', '')),
                 e(o.get('from', '')), e(o.get('to', '')), e(o['tariff']),
                 str(op.get('children', False)).lower(), op.get('childrenCount', 0),
                 str(op.get('luggage', False)).lower(), e(op.get('comment', '')),
                 ns(op.get('deliveryDescription')), ns(op.get('cargoDescription')),
                 e(o.get('paymentMethod', 'cash')), o.get('tips', 0), o.get('discount', 0),
-                o.get('distanceKm', 0), o.get('price', 0), ns(o.get('scheduledAt'))))
+                o.get('distanceKm', 0), o.get('price', 0), ns(o.get('scheduledAt')),
+                float(from_lat) if from_lat is not None else 'NULL',
+                float(from_lng) if from_lng is not None else 'NULL'))
             return ok({'ok': True})
 
         if act == 'update-order':
@@ -275,7 +287,9 @@ def fmt_driver(r):
             'autoAssignDeclines': int(r['auto_assign_declines']), 'cancelledOrders': int(r['cancelled_orders']),
             'autoAssignTrips': int(r['auto_assign_trips']), 'freeTrips': int(r['free_trips']),
             'totalEarnings': float(r['total_earnings']), 'totalKm': float(r['total_km']),
-            'totalHours': float(r['total_hours'])}
+            'totalHours': float(r['total_hours']),
+            'lat': float(r['lat']) if r.get('lat') is not None else None,
+            'lng': float(r['lng']) if r.get('lng') is not None else None}
 
 
 def fmt_order(r):
@@ -294,7 +308,9 @@ def fmt_order(r):
             'etaMinutes': r.get('eta_minutes'), 'freeAt': int(fa.timestamp() * 1000) if fa else None,
             'acceptedVia': r.get('accepted_via'), 'cancelledBy': r.get('cancelled_by'),
             'scheduledAt': r.get('scheduled_at'), 'waitingMinutes': int(r.get('waiting_minutes', 0)),
-            'createdAt': str(ca)[11:16] if ca else '', 'createdTimestamp': int(ca.timestamp() * 1000) if ca else 0}
+            'createdAt': str(ca)[11:16] if ca else '', 'createdTimestamp': int(ca.timestamp() * 1000) if ca else 0,
+            'fromLat': float(r['from_lat']) if r.get('from_lat') is not None else None,
+            'fromLng': float(r['from_lng']) if r.get('from_lng') is not None else None}
 
 
 def fmt_sup(r):

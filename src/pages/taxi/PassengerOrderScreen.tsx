@@ -56,6 +56,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
   const [tips, setTips] = useState(0);
   const [pickMode, setPickMode] = useState<"from" | "to" | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: string; action: () => void } | null>(null);
+  const [fromCoords, setFromCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const showToast = (text: string, sub?: string) => {
     setToast({ text, sub });
@@ -105,6 +106,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
+        setFromCoords({ lat: latitude, lng: longitude });
         try {
           await new Promise<void>((resolve) => {
             if (window.ymaps) window.ymaps.ready(() => resolve());
@@ -193,6 +195,8 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       freeAt: Date.now(),
       acceptedVia: undefined,
       scheduledAt: scheduledAtStr,
+      fromLat: fromCoords?.lat ?? null,
+      fromLng: fromCoords?.lng ?? null,
     };
     onOrderCreate(order);
     setActiveOrderId(order.id);
