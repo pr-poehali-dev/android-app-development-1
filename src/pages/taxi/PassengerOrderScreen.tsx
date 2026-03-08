@@ -413,6 +413,11 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
               )}
 
               <div style={{ display: "flex", gap: 8 }}>
+                {assignedDriver?.phone && (
+                  <a href={`tel:${assignedDriver.phone.replace(/\s/g, "")}`} style={{ width: 48, height: 48, flexShrink: 0, background: "var(--taxi-green)", border: "none", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+                    <Icon name="Phone" size={20} color="#fff" />
+                  </a>
+                )}
                 <button onClick={() => setChatOpen(true)} style={{ flex: 1, padding: "13px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <Icon name="MessageCircle" size={16} color="var(--taxi-yellow)" /> Чат
                 </button>
@@ -470,9 +475,16 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
                 )}
               </div>
 
-              <button onClick={() => setChatOpen(true)} style={{ width: "100%", padding: "13px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <Icon name="MessageCircle" size={16} color="var(--taxi-yellow)" /> Написать водителю
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                {assignedDriver?.phone && (
+                  <a href={`tel:${assignedDriver.phone.replace(/\s/g, "")}`} style={{ width: 48, height: 48, flexShrink: 0, background: "var(--taxi-green)", border: "none", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+                    <Icon name="Phone" size={20} color="#fff" />
+                  </a>
+                )}
+                <button onClick={() => setChatOpen(true)} style={{ flex: 1, padding: "13px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  <Icon name="MessageCircle" size={16} color="var(--taxi-yellow)" /> Написать водителю
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -498,6 +510,16 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
                     <div style={{ fontSize: 11, color: "var(--taxi-muted)", textAlign: "right" }}>+ожидание</div>
                   )}
                 </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                {assignedDriver?.phone && (
+                  <a href={`tel:${assignedDriver.phone.replace(/\s/g, "")}`} style={{ width: 44, height: 44, flexShrink: 0, background: "var(--taxi-green)", border: "none", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+                    <Icon name="Phone" size={18} color="#fff" />
+                  </a>
+                )}
+                <button onClick={() => setChatOpen(true)} style={{ flex: 1, padding: "11px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 12, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Icon name="MessageCircle" size={15} color="var(--taxi-yellow)" /> Чат
+                </button>
               </div>
             </div>
           </div>
