@@ -184,7 +184,7 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
             <img src={LOGO_URL} alt="Taxi" style={{ width: "var(--logo-sm-size)", height: "var(--logo-sm-size)", objectFit: "cover", borderRadius: "var(--logo-sm-radius)" }} />
           </div>
           <div style={{ fontFamily: "Montserrat", fontWeight: 900, fontSize: 18, color: "#F0F2F5" }}>
-            Антипиха <span style={{ color: "var(--taxi-yellow)" }}>Taxi</span>
+            <span style={{ color: "var(--taxi-yellow)" }}>Taxi</span>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-"""Антипиха Taxi API"""
+"""Taxi API"""
 import json
 import os
 import psycopg2
@@ -37,7 +37,7 @@ def ns(v):
 
 
 def handler(event, context):
-    """Единый API бэкенда такси-сервиса Антипиха Taxi"""
+    """Единый API бэкенда такси-сервиса Taxi"""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS, 'body': ''}
 

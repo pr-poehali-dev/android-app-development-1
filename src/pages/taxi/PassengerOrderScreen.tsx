@@ -263,7 +263,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
             Спасибо за поездку!
           </div>
           <div style={{ fontSize: 13, color: "var(--taxi-muted)", textAlign: "center", marginBottom: 20, lineHeight: 1.5 }}>
-            Мы ценим, что вы выбрали Антипиха Taxi
+            Мы ценим, что вы выбрали наш сервис
           </div>
           {assignedDriver && (
             <div style={{ textAlign: "center", marginBottom: 16 }}>
