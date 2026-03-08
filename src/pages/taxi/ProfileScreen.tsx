@@ -1,16 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import { User, SupportMessage, LOGO_URL } from "./types";
-import { playNotificationSound } from "./notifications";
+import { playNotificationSound, sendPush } from "./notifications";
 
 interface Props {
   user: User;
   onLogout: () => void;
   onSendSupport: (msg: SupportMessage) => void;
   supportMessages: SupportMessage[];
+  onMarkMessagesRead: (userId: string, readerRole: "admin" | "passenger" | "driver") => void;
 }
 
-export default function ProfileScreen({ user, onLogout, onSendSupport, supportMessages }: Props) {
+export default function ProfileScreen({ user, onLogout, onSendSupport, supportMessages, onMarkMessagesRead }: Props) {
   const [supportOpen, setSupportOpen] = useState(false);
   const [input, setInput] = useState("");
   const prevCountRef = useRef(supportMessages.length);
@@ -19,15 +20,25 @@ export default function ProfileScreen({ user, onLogout, onSendSupport, supportMe
     (m) => m.fromId === user.id || (m.fromRole === "admin" && m.fromId === user.id)
   );
 
+  const unreadCount = myMessages.filter((m) => m.fromRole === "admin" && !m.read).length;
+
   useEffect(() => {
     if (supportMessages.length > prevCountRef.current) {
-      const lastMsg = supportMessages[supportMessages.length - 1];
-      if (lastMsg.fromRole === "admin" && lastMsg.fromId === user.id) {
+      const newMsgs = supportMessages.slice(prevCountRef.current);
+      const incoming = newMsgs.filter((m) => m.fromRole === "admin" && m.fromId === user.id);
+      if (incoming.length > 0) {
         playNotificationSound("message");
+        sendPush("Поддержка", incoming[incoming.length - 1].text.slice(0, 80));
       }
     }
     prevCountRef.current = supportMessages.length;
   }, [supportMessages, user.id]);
+
+  useEffect(() => {
+    if (supportOpen) {
+      onMarkMessagesRead(user.id, "passenger");
+    }
+  }, [supportOpen, user.id, onMarkMessagesRead]);
 
   const sendMessage = () => {
     if (!input.trim()) return;
@@ -134,12 +145,24 @@ export default function ProfileScreen({ user, onLogout, onSendSupport, supportMe
           onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--taxi-yellow)")}
           onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--taxi-border)")}
         >
-          <div style={{ width: 48, height: 48, background: "rgba(255,204,0,0.15)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 48, height: 48, background: "rgba(255,204,0,0.15)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
             <Icon name="MessageCircle" size={22} color="var(--taxi-yellow)" />
+            {unreadCount > 0 && (
+              <span style={{
+                position: "absolute", top: -4, right: -4, minWidth: 18, height: 18,
+                background: "var(--taxi-red)", borderRadius: 9, display: "flex",
+                alignItems: "center", justifyContent: "center", fontSize: 10,
+                color: "#fff", fontWeight: 700, padding: "0 4px",
+              }}>
+                {unreadCount}
+              </span>
+            )}
           </div>
           <div style={{ flex: 1, textAlign: "left" }}>
             <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 15, color: "#F0F2F5" }}>Поддержка</div>
-            <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 2 }}>Чат с администратором</div>
+            <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 2 }}>
+              {unreadCount > 0 ? `${unreadCount} новых сообщений` : "Чат с администратором"}
+            </div>
           </div>
           <Icon name="ChevronRight" size={18} color="var(--taxi-muted)" />
         </button>

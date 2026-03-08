@@ -36,6 +36,7 @@ interface Props {
   onSendSupport: (msg: SupportMessage) => void;
   supportMessages: SupportMessage[];
   userId: string;
+  onMarkMessagesRead: (userId: string, readerRole: "admin" | "passenger" | "driver") => void;
 }
 
 type DriverTab = "profile" | "orders" | "history" | "chat";
@@ -59,6 +60,7 @@ export default function DriverScreen({
   onSendSupport,
   supportMessages,
   userId,
+  onMarkMessagesRead,
 }: Props) {
   const [tab, setTab] = useState<DriverTab>("profile");
   const [editingCar, setEditingCar] = useState(false);
@@ -101,16 +103,25 @@ export default function DriverScreen({
     (m) => m.fromId === userId || (m.fromRole === "admin" && m.fromId === userId)
   );
 
+  const supportUnread = mySupportMessages.filter((m) => m.fromRole === "admin" && !m.read).length;
+
   useEffect(() => {
-    const adminMessages = supportMessages.filter((m) => m.fromRole === "admin" && m.fromId === userId);
-    if (adminMessages.length > 0 && supportMessages.length > prevSupportCountRef.current) {
-      const lastMsg = supportMessages[supportMessages.length - 1];
-      if (lastMsg.fromRole === "admin") {
+    if (supportMessages.length > prevSupportCountRef.current) {
+      const newMsgs = supportMessages.slice(prevSupportCountRef.current);
+      const incoming = newMsgs.filter((m) => m.fromRole === "admin" && m.fromId === userId);
+      if (incoming.length > 0) {
         playNotificationSound("message");
+        sendPush("Поддержка", incoming[incoming.length - 1].text.slice(0, 80));
       }
     }
     prevSupportCountRef.current = supportMessages.length;
   }, [supportMessages, userId]);
+
+  useEffect(() => {
+    if (supportOpen) {
+      onMarkMessagesRead(userId, "driver");
+    }
+  }, [supportOpen, userId, onMarkMessagesRead]);
 
   useEffect(() => {
     if (!driver.autoAssign || isRestricted || myOrder || !carFilled || !canWork) return;
@@ -800,7 +811,31 @@ export default function DriverScreen({
             className={`nav-item ${tab === item.id ? "active" : ""}`}
             onClick={() => setTab(item.id)}
           >
-            <Icon name={item.icon} size={22} />
+            <div style={{ position: "relative", display: "inline-flex" }}>
+              <Icon name={item.icon} size={22} />
+              {item.id === "chat" && supportUnread > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -5,
+                    right: -8,
+                    minWidth: 16,
+                    height: 16,
+                    background: "var(--taxi-red)",
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 9,
+                    color: "#fff",
+                    fontWeight: 700,
+                    padding: "0 4px",
+                  }}
+                >
+                  {supportUnread > 99 ? "99+" : supportUnread}
+                </span>
+              )}
+            </div>
             <span>{item.label}</span>
           </button>
         ))}

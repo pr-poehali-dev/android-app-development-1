@@ -30,6 +30,7 @@ interface Props {
   onUpdateOrder: (id: string, changes: Partial<Order>) => void;
   onSendSupport: (msg: SupportMessage) => void;
   onAcceptOrder: (orderId: string, driverId: string, driverName: string, eta?: number) => void;
+  onMarkMessagesRead: (userId: string, readerRole: "admin" | "passenger" | "driver") => void;
 }
 
 type AdminTab = "overview" | "stats" | "drivers" | "tariffs" | "chat";
@@ -128,6 +129,7 @@ export default function AdminScreen({
   onUpdateOrder,
   onSendSupport,
   onAcceptOrder,
+  onMarkMessagesRead,
 }: Props) {
   const [tab, setTab] = useState<AdminTab>("overview");
 
@@ -278,6 +280,12 @@ export default function AdminScreen({
     }
     prevDriverChatCountRef.current = newCount;
   }, [driverChatMessages]);
+
+  useEffect(() => {
+    if (chatUser) {
+      onMarkMessagesRead(chatUser, "admin");
+    }
+  }, [chatUser, onMarkMessagesRead]);
 
   const handleChangePassword = () => {
     if (oldPw !== settings.adminPassword) {

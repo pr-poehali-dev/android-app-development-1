@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import AuthScreen from "./pages/taxi/AuthScreen";
 import PassengerOrderScreen from "./pages/taxi/PassengerOrderScreen";
 import HistoryScreen from "./pages/taxi/HistoryScreen";
@@ -11,7 +11,7 @@ import {
   INITIAL_DRIVERS, INITIAL_ORDERS, INITIAL_SETTINGS, INITIAL_PASSENGERS,
 } from "./pages/taxi/types";
 import {
-  requestNotificationPermission, saveSession, loadSession, clearSession,
+  requestNotificationPermission, saveSession, loadSession, clearSession, sendPush,
 } from "./pages/taxi/notifications";
 import api from "./pages/taxi/api";
 
@@ -168,7 +168,39 @@ export default function App() {
     api.sendSupport(msg as unknown as Record<string, unknown>);
   };
 
+  const handleMarkMessagesRead = (userId: string, readerRole: "admin" | "passenger" | "driver") => {
+    setSupportMessages((prev) =>
+      prev.map((m) => {
+        if (readerRole === "admin" && m.fromId === userId && m.fromRole !== "admin" && !m.read) {
+          return { ...m, read: true };
+        }
+        if ((readerRole === "passenger" || readerRole === "driver") && m.fromId === userId && m.fromRole === "admin" && !m.read) {
+          return { ...m, read: true };
+        }
+        return m;
+      })
+    );
+  };
+
   const currentDriver = user?.role === "driver" ? drivers.find((d) => d.id === user.id) ?? null : null;
+
+  const passengerUnread = useMemo(() => {
+    if (!user || user.role !== "passenger") return 0;
+    return supportMessages.filter((m) => m.fromRole === "admin" && m.fromId === user.id && !m.read).length;
+  }, [supportMessages, user]);
+
+  const prevPassengerMsgCount = useRef(supportMessages.length);
+  useEffect(() => {
+    if (!user || user.role !== "passenger") return;
+    if (supportMessages.length > prevPassengerMsgCount.current) {
+      const newMsgs = supportMessages.slice(prevPassengerMsgCount.current);
+      const incoming = newMsgs.filter((m) => m.fromRole === "admin" && m.fromId === user.id);
+      if (incoming.length > 0) {
+        sendPush("Поддержка", incoming[incoming.length - 1].text.slice(0, 80));
+      }
+    }
+    prevPassengerMsgCount.current = supportMessages.length;
+  }, [supportMessages, user]);
 
   if (!loaded) return null;
 
@@ -193,6 +225,7 @@ export default function App() {
           onUpdateOrder={handleUpdateOrder}
           onSendSupport={handleSendSupport}
           onAcceptOrder={handleAcceptOrder}
+          onMarkMessagesRead={handleMarkMessagesRead}
         />
       ) : user.role === "driver" && currentDriver ? (
         <DriverScreen
@@ -207,11 +240,12 @@ export default function App() {
           onSendSupport={handleSendSupport}
           supportMessages={supportMessages}
           userId={user.id}
+          onMarkMessagesRead={handleMarkMessagesRead}
         />
       ) : (
         <div style={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
           <div style={{ flex: 1, overflow: "hidden" }}>
-            {tab === "profile" && <ProfileScreen user={user} onLogout={handleLogout} onSendSupport={handleSendSupport} supportMessages={supportMessages} />}
+            {tab === "profile" && <ProfileScreen user={user} onLogout={handleLogout} onSendSupport={handleSendSupport} supportMessages={supportMessages} onMarkMessagesRead={handleMarkMessagesRead} />}
             {tab === "order" && (
               <PassengerOrderScreen
                 user={user}
@@ -239,7 +273,31 @@ export default function App() {
                 className={`nav-item ${tab === item.id ? "active" : ""}`}
                 onClick={() => setTab(item.id as PassengerTab)}
               >
-                <Icon name={item.icon} fallback="Circle" size={22} />
+                <div style={{ position: "relative", display: "inline-flex" }}>
+                  <Icon name={item.icon} fallback="Circle" size={22} />
+                  {item.id === "profile" && passengerUnread > 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -5,
+                        right: -8,
+                        minWidth: 16,
+                        height: 16,
+                        background: "var(--taxi-red)",
+                        borderRadius: 8,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 9,
+                        color: "#fff",
+                        fontWeight: 700,
+                        padding: "0 4px",
+                      }}
+                    >
+                      {passengerUnread > 99 ? "99+" : passengerUnread}
+                    </span>
+                  )}
+                </div>
                 <span>{item.label}</span>
               </button>
             ))}
