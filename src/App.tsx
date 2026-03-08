@@ -35,6 +35,12 @@ export default function App() {
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [dbReady, setDbReady] = useState(false);
+  const [toast, setToast] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (text: string, type: "success" | "error" = "success") => {
+    setToast({ text, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const loadFromDb = useCallback(async () => {
     if (!api.isConnected()) return;
@@ -139,8 +145,12 @@ export default function App() {
     }
     if (res && res.error) {
       setDrivers((prev) => prev.filter((dr) => dr.id !== d.id));
+      showToast(res.error, "error");
     } else if (res && res.ok) {
+      showToast(`Водитель ${d.name} добавлен`, "success");
       loadFromDb();
+    } else {
+      showToast("Нет связи с сервером. Водитель сохранён локально", "error");
     }
   };
 
@@ -223,6 +233,17 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {toast && (
+        <div style={{
+          position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)",
+          background: toast.type === "error" ? "rgba(239,68,68,0.95)" : "rgba(34,197,94,0.95)",
+          color: "#fff", padding: "10px 20px", borderRadius: 12, fontSize: 14, fontWeight: 600,
+          zIndex: 9999, boxShadow: "0 4px 20px rgba(0,0,0,0.3)", maxWidth: "90%", textAlign: "center",
+          animation: "fadeSlideUp 0.3s ease",
+        }}>
+          {toast.text}
+        </div>
+      )}
       {!user ? (
         <AuthScreen onAuth={handleAuth} drivers={drivers} settings={settings} />
       ) : user.role === "admin" ? (
