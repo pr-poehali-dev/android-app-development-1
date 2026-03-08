@@ -60,7 +60,13 @@ export default function App() {
         } else if (session.role === "driver") {
           setUser({ id: session.userId, name: session.name, phone: session.phone, role: "driver" });
         } else {
-          setUser({ id: session.userId, name: session.name, phone: session.phone, role: "passenger" });
+          const res = await api.authPassenger({ id: session.userId, name: session.name, phone: session.phone });
+          if (res && res.id && !res.error) {
+            saveSession({ userId: res.id, role: "passenger", name: res.name, phone: res.phone });
+            setUser({ id: res.id, name: res.name, phone: res.phone, role: "passenger" });
+          } else {
+            setUser({ id: session.userId, name: session.name, phone: session.phone, role: "passenger" });
+          }
         }
       }
       setLoaded(true);

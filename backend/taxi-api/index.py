@@ -51,15 +51,16 @@ def handler(event, context):
             return ok({'ok': True})
 
         if act == 'auth-passenger':
-            ph = e(b.get('phone', ''))
-            cur.execute("SELECT id,name,phone,role FROM users WHERE phone='%s' AND role='passenger'" % ph)
+            raw_ph = b.get('phone', '')
+            ph = e(raw_ph.replace(' ', '').replace('-', '').replace('(', '').replace(')', ''))
+            cur.execute("SELECT id,name,phone,role FROM users WHERE REPLACE(phone,' ','')='%s' AND role='passenger'" % ph)
             r = cur.fetchone()
             if r:
                 return ok(dict(r))
             uid = e(b.get('id', ''))
             nm = e(b.get('name', 'Пассажир'))
             cur.execute("INSERT INTO users(id,name,phone,role) VALUES('%s','%s','%s','passenger')" % (uid, nm, ph))
-            return ok({'id': b.get('id'), 'name': b.get('name'), 'phone': b.get('phone'), 'role': 'passenger'})
+            return ok({'id': uid, 'name': nm, 'phone': ph, 'role': 'passenger'})
 
         if act == 'auth-driver':
             cur.execute("SELECT id,name,phone FROM drivers WHERE login='%s' AND password='%s'" % (e(b.get('login')), e(b.get('password'))))
