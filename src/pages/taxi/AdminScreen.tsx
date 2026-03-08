@@ -887,199 +887,54 @@ export default function AdminScreen({
   );
 
   const renderStats = () => {
-    const totalOrders = orders.length;
-    const completedOrders = orders.filter((o) => o.status === "done").length;
-    const cancelledOrders = orders.filter((o) => o.status === "cancelled").length;
-    const totalRevenue = orders.filter((o) => o.status === "done").reduce((s, o) => s + (o.price || 0), 0);
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const recentOrders = orders.filter((o) => o.createdTimestamp >= thirtyDaysAgo);
+    const economyOrders = recentOrders.filter((o) => o.tariff === "economy").length;
+    const hourlyOrders = recentOrders.filter((o) => o.tariff === "hourly").length;
+    const deliveryOrders = recentOrders.filter((o) => o.tariff === "delivery").length;
+    const completedOrders = recentOrders.filter((o) => o.status === "done").length;
+    const cancelledOrders = recentOrders.filter((o) => o.status === "cancelled").length;
+    const inProgressOrders = recentOrders.filter((o) => o.status === "inprogress").length;
+    const inWorkOrders30 = recentOrders.filter((o) => ["assigned", "waiting", "arrived", "pending"].includes(o.status)).length;
 
-    const passengerStats = passengers.map((p) => {
-      const pOrders = orders.filter((o) => o.passengerId === p.id);
-      return {
-        id: p.id,
-        name: p.name,
-        totalOrders: pOrders.length,
-        completed: pOrders.filter((o) => o.status === "done").length,
-        cancelled: pOrders.filter((o) => o.status === "cancelled").length,
-      };
-    });
-
-    const allUsers = [
-      ...passengers.map((p) => ({ id: p.id, name: p.name, role: "passenger" as const, registeredAt: p.registeredAt || "-" })),
-      ...drivers.map((d) => ({ id: d.id, name: d.name, role: "driver" as const, registeredAt: d.registeredAt || "-" })),
+    const statItems = [
+      { label: "Эконом", value: economyOrders, color: "var(--taxi-yellow)", icon: "Car" },
+      { label: "Грузовой", value: hourlyOrders, color: "#60A5FA", icon: "Truck" },
+      { label: "Доставка", value: deliveryOrders, color: "var(--taxi-green)", icon: "Package" },
+      { label: "Выполнено", value: completedOrders, color: "var(--taxi-green)", icon: "CheckCircle" },
+      { label: "Отменено", value: cancelledOrders, color: "var(--taxi-red)", icon: "XCircle" },
+      { label: "Выполняется", value: inProgressOrders, color: "#60A5FA", icon: "Loader" },
+      { label: "В работе", value: inWorkOrders30, color: "var(--taxi-yellow)", icon: "Clock" },
     ];
 
     return (
       <div className="animate-fade-slide-up">
-        <div style={{ ...headingStyle, fontSize: 18, marginBottom: 16 }}>Статистика</div>
+        <div style={{ ...headingStyle, fontSize: 18, marginBottom: 4 }}>Статистика</div>
+        <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginBottom: 16 }}>Последние 30 дней</div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-          {[
-            { label: "Всего заказов", value: totalOrders, color: "var(--taxi-yellow)" },
-            { label: "Завершено", value: completedOrders, color: "var(--taxi-green)" },
-            { label: "Отменено", value: cancelledOrders, color: "var(--taxi-red)" },
-            { label: "Выручка", value: `${totalRevenue} ₽`, color: "var(--taxi-yellow)" },
-          ].map((s) => (
-            <div key={s.label} className="taxi-card" style={{ textAlign: "center", padding: "12px 6px" }}>
-              <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: s.color }}>
-                {s.value}
-              </div>
-              <div style={{ fontSize: 10, color: "var(--taxi-muted)", marginTop: 2 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        <div style={sectionTitle}>Пассажиры (30 дн.)</div>
-        <div className="taxi-card" style={{ marginBottom: 16, overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "Golos Text" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--taxi-border)" }}>
-                <th style={{ textAlign: "left", padding: "8px 6px", color: "var(--taxi-muted)", fontWeight: 600 }}>Имя</th>
-                <th style={{ textAlign: "center", padding: "8px 4px", color: "var(--taxi-muted)", fontWeight: 600 }}>Всего</th>
-                <th style={{ textAlign: "center", padding: "8px 4px", color: "var(--taxi-muted)", fontWeight: 600 }}>Завер.</th>
-                <th style={{ textAlign: "center", padding: "8px 4px", color: "var(--taxi-muted)", fontWeight: 600 }}>Отмен.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {passengerStats.map((p) => (
-                <tr key={p.id} style={{ borderBottom: "1px solid var(--taxi-border)" }}>
-                  <td style={{ padding: "8px 6px", color: "#F0F2F5" }}>{p.name}</td>
-                  <td style={{ textAlign: "center", padding: "8px 4px", color: "var(--taxi-yellow)", fontWeight: 600 }}>{p.totalOrders}</td>
-                  <td style={{ textAlign: "center", padding: "8px 4px", color: "var(--taxi-green)" }}>{p.completed}</td>
-                  <td style={{ textAlign: "center", padding: "8px 4px", color: "var(--taxi-red)" }}>{p.cancelled}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div style={sectionTitle}>Водители (30 дн.)</div>
-        <div className="taxi-card" style={{ marginBottom: 16, overflowX: "auto" }}>
-          <div style={{ minWidth: 500 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontFamily: "Golos Text" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--taxi-border)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 4px", color: "var(--taxi-muted)", fontWeight: 600 }}>Имя</th>
-                  <th style={{ textAlign: "center", padding: "8px 3px", color: "var(--taxi-muted)", fontWeight: 600 }}>Рейт.</th>
-                  <th style={{ textAlign: "center", padding: "8px 3px", color: "var(--taxi-muted)", fontWeight: 600 }}>Поезд.</th>
-                  <th style={{ textAlign: "center", padding: "8px 3px", color: "var(--taxi-muted)", fontWeight: 600 }}>Авто</th>
-                  <th style={{ textAlign: "center", padding: "8px 3px", color: "var(--taxi-muted)", fontWeight: 600 }}>Своб.</th>
-                  <th style={{ textAlign: "center", padding: "8px 3px", color: "var(--taxi-muted)", fontWeight: 600 }}>Откл.</th>
-                  <th style={{ textAlign: "center", padding: "8px 3px", color: "var(--taxi-muted)", fontWeight: 600 }}>Отмен.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {drivers.map((d) => (
-                  <tr key={d.id} style={{ borderBottom: "1px solid var(--taxi-border)" }}>
-                    <td style={{ padding: "8px 4px", color: "#F0F2F5", whiteSpace: "nowrap" }}>{d.name}</td>
-                    <td style={{ textAlign: "center", padding: "8px 3px", color: "var(--taxi-yellow)", fontWeight: 600 }}>{d.rating}</td>
-                    <td style={{ textAlign: "center", padding: "8px 3px", color: "#F0F2F5" }}>{d.tripsCount}</td>
-                    <td style={{ textAlign: "center", padding: "8px 3px", color: "#60A5FA" }}>{d.autoAssignTrips}</td>
-                    <td style={{ textAlign: "center", padding: "8px 3px", color: "var(--taxi-green)" }}>{d.freeTrips}</td>
-                    <td style={{ textAlign: "center", padding: "8px 3px", color: "var(--taxi-muted)" }}>{d.autoAssignDeclines}</td>
-                    <td style={{ textAlign: "center", padding: "8px 3px", color: "var(--taxi-red)" }}>{d.cancelledOrders}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div style={sectionTitle}>Все пользователи</div>
+        <div style={sectionTitle}>Заказы по типам</div>
         <div className="taxi-card" style={{ marginBottom: 16 }}>
-          {allUsers.map((u, i) => (
+          {statItems.map((s, i) => (
             <div
-              key={u.id}
+              key={s.label}
               style={{
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                padding: "10px 0",
-                borderBottom: i < allUsers.length - 1 ? "1px solid var(--taxi-border)" : "none",
+                justifyContent: "space-between",
+                padding: "12px 0",
+                borderBottom: i < statItems.length - 1 ? "1px solid var(--taxi-border)" : "none",
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: "#F0F2F5", fontWeight: 600 }}>{u.name}</div>
-                <div style={{ fontSize: 11, color: "var(--taxi-muted)" }}>
-                  {u.role === "driver" ? "Водитель" : "Пассажир"} · {u.registeredAt}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: `${s.color}20`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name={s.icon} size={16} color={s.color} />
                 </div>
+                <span style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 500 }}>{s.label}</span>
               </div>
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                {u.role === "driver" && (
-                  <button
-                    onClick={() => {
-                      setChangePwUserId(u.id);
-                      setUserNewPw("");
-                    }}
-                    style={{
-                      padding: "4px 8px",
-                      background: "var(--taxi-surface)",
-                      border: "1px solid var(--taxi-border)",
-                      borderRadius: 8,
-                      color: "var(--taxi-yellow)",
-                      fontSize: 11,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Icon name="Key" size={11} />
-                  </button>
-                )}
-                <button
-                  onClick={() => onDeleteUser(u.id)}
-                  style={{
-                    padding: "4px 8px",
-                    background: "rgba(239,68,68,0.1)",
-                    border: "1px solid rgba(239,68,68,0.2)",
-                    borderRadius: 8,
-                    color: "var(--taxi-red)",
-                    fontSize: 11,
-                    cursor: "pointer",
-                  }}
-                >
-                  <Icon name="Trash2" size={11} />
-                </button>
-              </div>
+              <span style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 18, color: s.color }}>{s.value}</span>
             </div>
           ))}
         </div>
-
-        {changePwUserId && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.7)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 200,
-              padding: 24,
-            }}
-            onClick={() => setChangePwUserId(null)}
-          >
-            <div
-              className="taxi-card animate-fade-slide-up"
-              style={{ width: "calc(100% - 24px)", maxWidth: 320 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ ...headingStyle, fontSize: 15, marginBottom: 12 }}>Новый пароль</div>
-              <input
-                className="taxi-input"
-                type="text"
-                placeholder="Введите новый пароль"
-                value={userNewPw}
-                onChange={(e) => setUserNewPw(e.target.value)}
-                style={{ marginBottom: 10 }}
-              />
-              <button
-                className="btn-yellow"
-                onClick={() => handleChangeUserPassword(changePwUserId)}
-                style={{ padding: 10, fontSize: 13 }}
-              >
-                Сохранить
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     );
   };
