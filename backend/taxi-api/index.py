@@ -172,6 +172,23 @@ def handler(event, context):
                 e(m['id']), e(m['fromId']), e(m['fromName']), e(m['fromRole']), e(m['text']), e(m['time']), m['timestamp'], str(m.get('read', False)).lower()))
             return ok({'ok': True})
 
+        if act == 'get-driver-chat':
+            cur.execute("SELECT id,driver_id,driver_name,text,created_at FROM driver_chat ORDER BY created_at DESC LIMIT 100")
+            rows = cur.fetchall()
+            msgs = [{'id': r['id'], 'driverId': r['driver_id'], 'driverName': r['driver_name'], 'text': r['text'], 'time': str(r['created_at'])[11:16], 'timestamp': int(r['created_at'].timestamp() * 1000)} for r in rows]
+            msgs.reverse()
+            return ok({'messages': msgs})
+
+        if act == 'send-driver-chat':
+            did = e(b.get('driverId', ''))
+            dn = e(b.get('driverName', ''))
+            txt = e(b.get('text', ''))
+            if not txt:
+                return err(400, 'Empty message')
+            cur.execute("INSERT INTO driver_chat(driver_id,driver_name,text) VALUES('%s','%s','%s') RETURNING id,created_at" % (did, dn, txt))
+            r = cur.fetchone()
+            return ok({'id': r['id'], 'time': str(r['created_at'])[11:16], 'timestamp': int(r['created_at'].timestamp() * 1000)})
+
         if act == 'rate-driver':
             did = e(b.get('driverId', ''))
             rt = b.get('rating', 5)

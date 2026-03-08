@@ -11,6 +11,7 @@ import {
   subscriptionDaysLeft,
 } from "./types";
 import { playNotificationSound, sendPush } from "./notifications";
+import api from "./api";
 
 const TARIFF_LABELS: Record<Order["tariff"], string> = {
   economy: "Эконом",
@@ -37,12 +38,13 @@ interface Props {
   userId: string;
 }
 
-type DriverTab = "profile" | "orders" | "history";
+type DriverTab = "profile" | "orders" | "history" | "chat";
 
 const NAV_ITEMS = [
   { id: "profile" as const, label: "Профиль", icon: "User" },
   { id: "orders" as const, label: "Заказы", icon: "ClipboardList" },
   { id: "history" as const, label: "История", icon: "Clock" },
+  { id: "chat" as const, label: "Чат", icon: "MessageSquare" },
 ];
 
 export default function DriverScreen({
@@ -73,6 +75,10 @@ export default function DriverScreen({
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportInput, setSupportInput] = useState("");
   const prevSupportCountRef = useRef(supportMessages.length);
+  const [driverChatMessages, setDriverChatMessages] = useState<{id: number; driverId: string; driverName: string; text: string; time: string; timestamp: number}[]>([]);
+  const [driverChatInput, setDriverChatInput] = useState("");
+  const [driverChatLoading, setDriverChatLoading] = useState(false);
+  const prevDriverChatCountRef = useRef(0);
 
   const subActive = isSubscriptionActive(driver);
   const subDays = subscriptionDaysLeft(driver);
@@ -119,6 +125,29 @@ export default function DriverScreen({
       sendPush("Taxi", "Новый заказ!");
     }
   }, [orders, driver.autoAssign, isRestricted, myOrder, carFilled, autoAssignOffer, canWork]);
+
+  useEffect(() => {
+    const loadChat = async () => {
+      const res = await api.getDriverChat();
+      if (res?.messages) {
+        setDriverChatMessages(res.messages);
+      }
+    };
+    loadChat();
+    const interval = setInterval(loadChat, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (driverChatMessages.length > prevDriverChatCountRef.current && prevDriverChatCountRef.current > 0) {
+      const lastMsg = driverChatMessages[driverChatMessages.length - 1];
+      if (lastMsg && lastMsg.driverId !== driver.id) {
+        playNotificationSound("message");
+        sendPush("Чат водителей", `${lastMsg.driverName}: ${lastMsg.text}`);
+      }
+    }
+    prevDriverChatCountRef.current = driverChatMessages.length;
+  }, [driverChatMessages, driver.id]);
 
   const handleSaveCar = () => {
     if (!carBrand.trim() || !carModel.trim() || !carPlate.trim()) return;
@@ -181,6 +210,18 @@ export default function DriverScreen({
     setActiveView(null);
     setChatOpen(false);
     setChatMessages([]);
+  };
+
+  const sendDriverChatMessage = async () => {
+    if (!driverChatInput.trim() || driverChatLoading) return;
+    setDriverChatLoading(true);
+    const text = driverChatInput.trim();
+    setDriverChatInput("");
+    const res = await api.sendDriverChat(driver.id, driver.name, text);
+    if (res?.id) {
+      setDriverChatMessages((prev) => [...prev, { id: res.id, driverId: driver.id, driverName: driver.name, text, time: res.time, timestamp: res.timestamp }]);
+    }
+    setDriverChatLoading(false);
   };
 
   if (supportOpen) {
@@ -514,195 +555,239 @@ export default function DriverScreen({
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--taxi-dark)" }}>
-      <div style={{ flex: 1, overflowY: "auto", paddingBottom: 80 }}>
-        {tab === "profile" && (
-          <div className="animate-fade-slide-up" style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 24 }}>
-              <div style={{
-                width: 80, height: 80, background: "var(--taxi-yellow)", borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <span style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 32, color: "var(--taxi-dark)" }}>
-                  {driver.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>{driver.name}</h2>
-                <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{driver.phone}</div>
-              </div>
-            </div>
-
-            {isRestricted && (
-              <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 14, marginBottom: 14, fontSize: 13, color: "var(--taxi-red)", lineHeight: 1.5 }}>
-                <Icon name="AlertTriangle" size={14} /> Ваш аккаунт ограничен администратором. Обратитесь в поддержку.
-              </div>
-            )}
-
-            {!canWork && (
-              <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 14, marginBottom: 14, fontSize: 13, color: "var(--taxi-red)", lineHeight: 1.5 }}>
-                <Icon name="AlertTriangle" size={14} /> Подписка истекла. Обратитесь к администратору для продления.
-              </div>
-            )}
-
-            <div style={{ fontSize: 11, color: "var(--taxi-muted)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Данные автомобиля</div>
-            {editingCar ? (
-              <div className="taxi-card" style={{ marginBottom: 14 }}>
-                <input className="taxi-input" placeholder="Марка (Toyota, Kia...)" value={carBrand} onChange={(e) => setCarBrand(e.target.value)} style={{ marginBottom: 8 }} />
-                <input className="taxi-input" placeholder="Модель (Camry, Rio...)" value={carModel} onChange={(e) => setCarModel(e.target.value)} style={{ marginBottom: 8 }} />
-                <input className="taxi-input" placeholder="Госномер (А123БВ)" value={carPlate} onChange={(e) => setCarPlate(e.target.value)} style={{ marginBottom: 12 }} />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => setEditingCar(false)} style={{ flex: 1, padding: "10px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "var(--taxi-muted)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
-                    Отмена
-                  </button>
-                  <button onClick={handleSaveCar} disabled={!carBrand.trim() || !carModel.trim() || !carPlate.trim()}
-                    style={{ flex: 1, padding: "10px", background: "var(--taxi-yellow)", border: "none", borderRadius: 12, color: "var(--taxi-dark)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 700, opacity: (!carBrand.trim() || !carModel.trim() || !carPlate.trim()) ? 0.5 : 1 }}>
-                    Сохранить
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="taxi-card" style={{ marginBottom: 14, cursor: "pointer" }} onClick={() => setEditingCar(true)}>
-                {carFilled ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div>
-                      <div style={{ fontSize: 15, color: "#F0F2F5", fontWeight: 600 }}>{driver.carInfo.brand} {driver.carInfo.model}</div>
-                      <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginTop: 2 }}>{driver.carInfo.plateNumber}</div>
-                    </div>
-                    <Icon name="Pencil" size={16} color="var(--taxi-yellow)" />
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--taxi-red)" }}>
-                    <Icon name="AlertCircle" size={18} />
-                    <span style={{ fontSize: 13 }}>Заполните данные автомобиля для выхода на линию</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="taxi-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, padding: "14px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 40, height: 40, background: driver.autoAssign && canWork ? "rgba(255,204,0,0.15)" : "var(--taxi-surface)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Icon name="Zap" size={20} color={driver.autoAssign && canWork ? "var(--taxi-yellow)" : "var(--taxi-muted)"} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 500 }}>Авто-назначение</div>
-                  <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginTop: 1 }}>
-                    {!canWork ? "Подписка истекла" : driver.autoAssign ? `ON - радиус ${settings.autoAssignRadiusKm} км` : `OFF - радиус ${settings.autoAssignRadiusKm} км`}
-                  </div>
-                </div>
-              </div>
-              <div onClick={() => !isRestricted && carFilled && canWork && onToggleAutoAssign(driver.id)}
-                style={{
-                  width: 48, height: 28, background: driver.autoAssign && !isRestricted && canWork ? "var(--taxi-yellow)" : "var(--taxi-surface)",
-                  borderRadius: 14, position: "relative", cursor: (isRestricted || !carFilled || !canWork) ? "not-allowed" : "pointer",
-                  transition: "background 0.2s", border: `1px solid ${driver.autoAssign && !isRestricted && canWork ? "var(--taxi-yellow)" : "var(--taxi-border)"}`,
-                  opacity: (isRestricted || !carFilled || !canWork) ? 0.5 : 1, flexShrink: 0,
+      {tab !== "chat" && (
+        <div style={{ flex: 1, overflowY: "auto", paddingBottom: 80 }}>
+          {tab === "profile" && (
+            <div className="animate-fade-slide-up" style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                <div style={{
+                  width: 80, height: 80, background: "var(--taxi-yellow)", borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                <div style={{ position: "absolute", width: 22, height: 22, background: driver.autoAssign && !isRestricted && canWork ? "var(--taxi-dark)" : "#F0F2F5", borderRadius: "50%", top: 2, left: driver.autoAssign && !isRestricted && canWork ? 23 : 2, transition: "left 0.2s" }} />
+                  <span style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 32, color: "var(--taxi-dark)" }}>
+                    {driver.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>{driver.name}</h2>
+                  <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{driver.phone}</div>
+                </div>
               </div>
-            </div>
 
-            <button onClick={() => { setTab("orders"); }}
-              style={{
-                width: "100%", padding: "14px 16px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)",
-                borderRadius: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, marginBottom: 10, transition: "border-color 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--taxi-yellow)")}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--taxi-border)")}
-            >
-              <div style={{ width: 40, height: 40, background: "rgba(255,204,0,0.15)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon name="ClipboardList" size={20} color="var(--taxi-yellow)" />
-              </div>
-              <div style={{ flex: 1, textAlign: "left" }}>
-                <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 600 }}>Свободные заказы</div>
-                <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 1 }}>{freeOrders.length} доступно</div>
-              </div>
-              {freeOrders.length > 0 && (
-                <span style={{
-                  minWidth: 22, height: 22, padding: "0 6px", borderRadius: 11, background: "var(--taxi-yellow)",
-                  color: "var(--taxi-dark)", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  {freeOrders.length}
-                </span>
+              {isRestricted && (
+                <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 14, marginBottom: 14, fontSize: 13, color: "var(--taxi-red)", lineHeight: 1.5 }}>
+                  <Icon name="AlertTriangle" size={14} /> Ваш аккаунт ограничен администратором. Обратитесь в поддержку.
+                </div>
               )}
-              <Icon name="ChevronRight" size={18} color="var(--taxi-muted)" />
-            </button>
 
-            <button onClick={() => setSupportOpen(true)}
-              style={{
-                width: "100%", padding: "14px 16px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)",
-                borderRadius: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, marginBottom: 20, transition: "border-color 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--taxi-yellow)")}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--taxi-border)")}
-            >
-              <div style={{ width: 40, height: 40, background: "rgba(255,204,0,0.15)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon name="MessageCircle" size={20} color="var(--taxi-yellow)" />
-              </div>
-              <div style={{ flex: 1, textAlign: "left" }}>
-                <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 600 }}>Поддержка</div>
-                <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 1 }}>Чат с администратором</div>
-              </div>
-              <Icon name="ChevronRight" size={18} color="var(--taxi-muted)" />
-            </button>
-
-            <button onClick={onLogout}
-              style={{
-                width: "100%", padding: "14px", background: "transparent", border: "1px solid var(--taxi-border)",
-                borderRadius: 14, color: "var(--taxi-red)", fontFamily: "Montserrat", fontWeight: 600, fontSize: 14,
-                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              }}>
-              <Icon name="LogOut" size={18} color="var(--taxi-red)" /> Выйти
-            </button>
-          </div>
-        )}
-
-        {tab === "orders" && (
-          <div style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
-            <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>Свободные заказы</h2>
-            <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>{freeOrders.length} доступно</p>
-            {myOrder && (
-              <button onClick={() => setActiveView("ride")}
-                className="taxi-card animate-fade-slide-up"
-                style={{ width: "100%", cursor: "pointer", marginBottom: 14, border: "1.5px solid var(--taxi-yellow)", textAlign: "left" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="animate-blink" style={{ color: "var(--taxi-green)", fontSize: 10 }}>●</span>
-                  <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>У вас активный заказ</span>
-                  <Icon name="ChevronRight" size={16} color="var(--taxi-yellow)" />
+              {!canWork && (
+                <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 14, marginBottom: 14, fontSize: 13, color: "var(--taxi-red)", lineHeight: 1.5 }}>
+                  <Icon name="AlertTriangle" size={14} /> Подписка истекла. Обратитесь к администратору для продления.
                 </div>
-              </button>
-            )}
-            {freeOrders.length === 0 ? (
-              <div style={{ textAlign: "center", paddingTop: 40 }}>
-                <Icon name="CheckCircle" size={48} color="var(--taxi-green)" />
-                <div style={{ fontFamily: "Montserrat", fontWeight: 600, fontSize: 16, color: "#F0F2F5", marginTop: 12 }}>Все заказы разобраны</div>
-                <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginTop: 6 }}>Новые заказы появятся здесь</div>
-              </div>
-            ) : (
-              freeOrders.map((order, idx) => (
-                <FreeOrderCard
-                  key={order.id}
-                  order={order}
-                  idx={idx}
-                  onAccept={() => {
-                    if (!isRestricted && !myOrder && carFilled && canWork) setEtaSelect({ orderId: order.id });
-                  }}
-                  disabled={isRestricted || !!myOrder || !carFilled || !canWork}
-                  disabledReason={!canWork ? "Подписка истекла" : undefined}
-                />
-              ))
-            )}
-          </div>
-        )}
+              )}
 
-        {tab === "history" && (
-          <div style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
-            <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>История заказов</h2>
-            <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Все отработанные заказы</p>
-            <DriverHistory orders={orders} driverId={driver.id} />
+              <div style={{ fontSize: 11, color: "var(--taxi-muted)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Данные автомобиля</div>
+              {editingCar ? (
+                <div className="taxi-card" style={{ marginBottom: 14 }}>
+                  <input className="taxi-input" placeholder="Марка (Toyota, Kia...)" value={carBrand} onChange={(e) => setCarBrand(e.target.value)} style={{ marginBottom: 8 }} />
+                  <input className="taxi-input" placeholder="Модель (Camry, Rio...)" value={carModel} onChange={(e) => setCarModel(e.target.value)} style={{ marginBottom: 8 }} />
+                  <input className="taxi-input" placeholder="Госномер (А123БВ)" value={carPlate} onChange={(e) => setCarPlate(e.target.value)} style={{ marginBottom: 12 }} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => setEditingCar(false)} style={{ flex: 1, padding: "10px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "var(--taxi-muted)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
+                      Отмена
+                    </button>
+                    <button onClick={handleSaveCar} disabled={!carBrand.trim() || !carModel.trim() || !carPlate.trim()}
+                      style={{ flex: 1, padding: "10px", background: "var(--taxi-yellow)", border: "none", borderRadius: 12, color: "var(--taxi-dark)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 700, opacity: (!carBrand.trim() || !carModel.trim() || !carPlate.trim()) ? 0.5 : 1 }}>
+                      Сохранить
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="taxi-card" style={{ marginBottom: 14, cursor: "pointer" }} onClick={() => setEditingCar(true)}>
+                  {carFilled ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ fontSize: 15, color: "#F0F2F5", fontWeight: 600 }}>{driver.carInfo.brand} {driver.carInfo.model}</div>
+                        <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginTop: 2 }}>{driver.carInfo.plateNumber}</div>
+                      </div>
+                      <Icon name="Pencil" size={16} color="var(--taxi-yellow)" />
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--taxi-red)" }}>
+                      <Icon name="AlertCircle" size={18} />
+                      <span style={{ fontSize: 13 }}>Заполните данные автомобиля для выхода на линию</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="taxi-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, padding: "14px 16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 40, height: 40, background: driver.autoAssign && canWork ? "rgba(255,204,0,0.15)" : "var(--taxi-surface)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icon name="Zap" size={20} color={driver.autoAssign && canWork ? "var(--taxi-yellow)" : "var(--taxi-muted)"} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 500 }}>Авто-назначение</div>
+                    <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginTop: 1 }}>
+                      {!canWork ? "Подписка истекла" : driver.autoAssign ? `ON - радиус ${settings.autoAssignRadiusKm} км` : `OFF - радиус ${settings.autoAssignRadiusKm} км`}
+                    </div>
+                  </div>
+                </div>
+                <div onClick={() => !isRestricted && carFilled && canWork && onToggleAutoAssign(driver.id)}
+                  style={{
+                    width: 48, height: 28, background: driver.autoAssign && !isRestricted && canWork ? "var(--taxi-yellow)" : "var(--taxi-surface)",
+                    borderRadius: 14, position: "relative", cursor: (isRestricted || !carFilled || !canWork) ? "not-allowed" : "pointer",
+                    transition: "background 0.2s", border: `1px solid ${driver.autoAssign && !isRestricted && canWork ? "var(--taxi-yellow)" : "var(--taxi-border)"}`,
+                    opacity: (isRestricted || !carFilled || !canWork) ? 0.5 : 1, flexShrink: 0,
+                  }}>
+                  <div style={{ position: "absolute", width: 22, height: 22, background: driver.autoAssign && !isRestricted && canWork ? "var(--taxi-dark)" : "#F0F2F5", borderRadius: "50%", top: 2, left: driver.autoAssign && !isRestricted && canWork ? 23 : 2, transition: "left 0.2s" }} />
+                </div>
+              </div>
+
+              <button onClick={() => { setTab("orders"); }}
+                style={{
+                  width: "100%", padding: "14px 16px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)",
+                  borderRadius: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, marginBottom: 10, transition: "border-color 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--taxi-yellow)")}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--taxi-border)")}
+              >
+                <div style={{ width: 40, height: 40, background: "rgba(255,204,0,0.15)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="ClipboardList" size={20} color="var(--taxi-yellow)" />
+                </div>
+                <div style={{ flex: 1, textAlign: "left" }}>
+                  <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 600 }}>Свободные заказы</div>
+                  <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 1 }}>{freeOrders.length} доступно</div>
+                </div>
+                {freeOrders.length > 0 && (
+                  <span style={{
+                    minWidth: 22, height: 22, padding: "0 6px", borderRadius: 11, background: "var(--taxi-yellow)",
+                    color: "var(--taxi-dark)", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {freeOrders.length}
+                  </span>
+                )}
+                <Icon name="ChevronRight" size={18} color="var(--taxi-muted)" />
+              </button>
+
+              <button onClick={() => setSupportOpen(true)}
+                style={{
+                  width: "100%", padding: "14px 16px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)",
+                  borderRadius: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, marginBottom: 20, transition: "border-color 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--taxi-yellow)")}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--taxi-border)")}
+              >
+                <div style={{ width: 40, height: 40, background: "rgba(255,204,0,0.15)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="MessageCircle" size={20} color="var(--taxi-yellow)" />
+                </div>
+                <div style={{ flex: 1, textAlign: "left" }}>
+                  <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 600 }}>Поддержка</div>
+                  <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 1 }}>Чат с администратором</div>
+                </div>
+                <Icon name="ChevronRight" size={18} color="var(--taxi-muted)" />
+              </button>
+
+              <button onClick={onLogout}
+                style={{
+                  width: "100%", padding: "14px", background: "transparent", border: "1px solid var(--taxi-border)",
+                  borderRadius: 14, color: "var(--taxi-red)", fontFamily: "Montserrat", fontWeight: 600, fontSize: 14,
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                }}>
+                <Icon name="LogOut" size={18} color="var(--taxi-red)" /> Выйти
+              </button>
+            </div>
+          )}
+
+          {tab === "orders" && (
+            <div style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
+              <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>Свободные заказы</h2>
+              <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>{freeOrders.length} доступно</p>
+              {myOrder && (
+                <button onClick={() => setActiveView("ride")}
+                  className="taxi-card animate-fade-slide-up"
+                  style={{ width: "100%", cursor: "pointer", marginBottom: 14, border: "1.5px solid var(--taxi-yellow)", textAlign: "left" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="animate-blink" style={{ color: "var(--taxi-green)", fontSize: 10 }}>●</span>
+                    <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>У вас активный заказ</span>
+                    <Icon name="ChevronRight" size={16} color="var(--taxi-yellow)" />
+                  </div>
+                </button>
+              )}
+              {freeOrders.length === 0 ? (
+                <div style={{ textAlign: "center", paddingTop: 40 }}>
+                  <Icon name="CheckCircle" size={48} color="var(--taxi-green)" />
+                  <div style={{ fontFamily: "Montserrat", fontWeight: 600, fontSize: 16, color: "#F0F2F5", marginTop: 12 }}>Все заказы разобраны</div>
+                  <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginTop: 6 }}>Новые заказы появятся здесь</div>
+                </div>
+              ) : (
+                freeOrders.map((order, idx) => (
+                  <FreeOrderCard
+                    key={order.id}
+                    order={order}
+                    idx={idx}
+                    onAccept={() => {
+                      if (!isRestricted && !myOrder && carFilled && canWork) setEtaSelect({ orderId: order.id });
+                    }}
+                    disabled={isRestricted || !!myOrder || !carFilled || !canWork}
+                    disabledReason={!canWork ? "Подписка истекла" : undefined}
+                  />
+                ))
+              )}
+            </div>
+          )}
+
+          {tab === "history" && (
+            <div style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
+              <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>История заказов</h2>
+              <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Все отработанные заказы</p>
+              <DriverHistory orders={orders} driverId={driver.id} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "chat" && (
+        <div style={{ display: "flex", flexDirection: "column", height: "calc(100% - 60px)" }}>
+          <div style={{ padding: "var(--page-pt) var(--page-px) 8px" }}>
+            <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>Чат водителей</h2>
+            <p style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Общение между водителями</p>
           </div>
-        )}
-      </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "8px var(--page-px)", display: "flex", flexDirection: "column", gap: 8 }}>
+            {driverChatMessages.length === 0 && (
+              <div style={{ textAlign: "center", color: "var(--taxi-muted)", fontSize: 13, marginTop: 40 }}>
+                <Icon name="MessageSquare" size={40} color="var(--taxi-muted)" />
+                <div style={{ marginTop: 8 }}>Пока нет сообщений</div>
+              </div>
+            )}
+            {driverChatMessages.map((msg) => {
+              const isMe = msg.driverId === driver.id;
+              return (
+                <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start" }}>
+                  {!isMe && (
+                    <span style={{ fontSize: 11, color: "var(--taxi-yellow)", marginBottom: 2, fontWeight: 600 }}>{msg.driverName}</span>
+                  )}
+                  <div style={{
+                    maxWidth: "80%", padding: "10px 14px",
+                    borderRadius: isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                    background: isMe ? "var(--taxi-yellow)" : "var(--taxi-card)",
+                    border: isMe ? "none" : "1px solid var(--taxi-border)",
+                  }}>
+                    <p style={{ fontSize: 14, color: isMe ? "var(--taxi-dark)" : "#F0F2F5", lineHeight: 1.5, margin: 0 }}>{msg.text}</p>
+                    <p style={{ fontSize: 10, color: isMe ? "rgba(13,15,20,0.5)" : "var(--taxi-muted)", margin: "4px 0 0" }}>{msg.time}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ padding: "12px var(--page-px) 20px", borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 10 }}>
+            <input className="taxi-input" placeholder="Сообщение..." value={driverChatInput} onChange={(e) => setDriverChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendDriverChatMessage()} style={{ flex: 1 }} />
+            <button onClick={sendDriverChatMessage} disabled={driverChatLoading} style={{ width: 50, height: 50, background: "var(--taxi-yellow)", border: "none", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: driverChatLoading ? "wait" : "pointer", opacity: driverChatLoading ? 0.6 : 1 }}>
+              <Icon name="Send" size={20} color="var(--taxi-dark)" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="nav-bar">
         {NAV_ITEMS.map((item) => (
