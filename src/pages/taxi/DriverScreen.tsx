@@ -72,6 +72,7 @@ export default function DriverScreen({
   const [chatMessages, setChatMessages] = useState<{ from: string; text: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [autoAssignOffer, setAutoAssignOffer] = useState<Order | null>(null);
+  const declinedOrdersRef = useRef<Set<string>>(new Set());
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportInput, setSupportInput] = useState("");
   const prevSupportCountRef = useRef(supportMessages.length);
@@ -114,7 +115,7 @@ export default function DriverScreen({
   useEffect(() => {
     if (!driver.autoAssign || isRestricted || myOrder || !carFilled || !canWork) return;
     const pendingOrders = orders.filter(
-      (o) => o.status === "pending" && !o.driverId
+      (o) => o.status === "pending" && !o.driverId && !declinedOrdersRef.current.has(o.id)
     );
     if (pendingOrders.length > 0 && !autoAssignOffer) {
       const nearest = pendingOrders.sort(
@@ -168,6 +169,9 @@ export default function DriverScreen({
   };
 
   const handleDeclineAutoAssign = () => {
+    if (autoAssignOffer) {
+      declinedOrdersRef.current.add(autoAssignOffer.id);
+    }
     setAutoAssignOffer(null);
   };
 
