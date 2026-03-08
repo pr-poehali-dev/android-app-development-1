@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 import { User, Driver, AppSettings, LOGO_URL } from "./types";
 import { saveSession } from "./notifications";
 import AgreementScreen from "./AgreementScreen";
+import api from "./api";
 
 interface Props {
   onAuth: (user: User) => void;
@@ -52,23 +53,46 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
     }
   };
 
-  const handleDriverLogin = () => {
-    const found = drivers.find((d) => d.login === driverLogin && d.password === driverPassword);
-    if (found) {
-      saveSession({ userId: found.id, role: "driver", name: found.name, phone: found.phone, driverLogin: found.login });
-      onAuth({ id: found.id, name: found.name, phone: found.phone, role: "driver" });
+  const [driverLoading, setDriverLoading] = useState(false);
+
+  const handleDriverLogin = async () => {
+    if (driverLoading) return;
+    setDriverLoading(true);
+    const res = await api.authDriver({ login: driverLogin, password: driverPassword });
+    setDriverLoading(false);
+    if (res && res.id && !res.error) {
+      saveSession({ userId: res.id, role: "driver", name: res.name, phone: res.phone, driverLogin: driverLogin });
+      onAuth({ id: res.id, name: res.name, phone: res.phone, role: "driver" });
     } else {
-      showError("Неверный логин или пароль");
+      const found = drivers.find((d) => d.login === driverLogin && d.password === driverPassword);
+      if (found) {
+        saveSession({ userId: found.id, role: "driver", name: found.name, phone: found.phone, driverLogin: found.login });
+        onAuth({ id: found.id, name: found.name, phone: found.phone, role: "driver" });
+      } else {
+        showError("Неверный логин или пароль");
+      }
     }
   };
 
-  const handleAdminLogin = () => {
-    if (adminLogin === "admin" && adminPassword === settings.adminPassword) {
-      const u: User = { id: "admin_1", name: "Администратор", phone: "", role: "admin" };
+  const [adminLoading, setAdminLoading] = useState(false);
+
+  const handleAdminLogin = async () => {
+    if (adminLoading) return;
+    setAdminLoading(true);
+    const res = await api.authAdmin({ login: adminLogin, password: adminPassword });
+    setAdminLoading(false);
+    if (res && res.id && !res.error) {
+      const u: User = { id: res.id, name: res.name, phone: res.phone || "", role: "admin" };
       saveSession({ userId: u.id, role: u.role, name: u.name, phone: u.phone });
       onAuth(u);
     } else {
-      showError("Неверный логин или пароль");
+      if (adminLogin === "admin" && adminPassword === settings.adminPassword) {
+        const u: User = { id: "admin_1", name: "Администратор", phone: "", role: "admin" };
+        saveSession({ userId: u.id, role: u.role, name: u.name, phone: u.phone });
+        onAuth(u);
+      } else {
+        showError("Неверный логин или пароль");
+      }
     }
   };
 
@@ -261,8 +285,8 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
                 <Icon name={showDriverPass ? "EyeOff" : "Eye"} size={18} fallback="Eye" />
               </button>
             </div>
-            <button className="btn-yellow" onClick={handleDriverLogin} disabled={!driverLogin || !driverPassword} style={{ opacity: !driverLogin || !driverPassword ? 0.5 : 1 }}>
-              Войти
+            <button className="btn-yellow" onClick={handleDriverLogin} disabled={!driverLogin || !driverPassword || driverLoading} style={{ opacity: !driverLogin || !driverPassword || driverLoading ? 0.5 : 1 }}>
+              {driverLoading ? "Вход..." : "Войти"}
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, justifyContent: "center" }}>
               <Icon name="ShieldCheck" size={14} color="var(--taxi-green)" fallback="Shield" />
@@ -283,8 +307,8 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
                 <Icon name={showAdminPass ? "EyeOff" : "Eye"} size={18} fallback="Eye" />
               </button>
             </div>
-            <button className="btn-yellow" onClick={handleAdminLogin} disabled={!adminLogin || !adminPassword} style={{ opacity: !adminLogin || !adminPassword ? 0.5 : 1 }}>
-              Войти
+            <button className="btn-yellow" onClick={handleAdminLogin} disabled={!adminLogin || !adminPassword || adminLoading} style={{ opacity: !adminLogin || !adminPassword || adminLoading ? 0.5 : 1 }}>
+              {adminLoading ? "Вход..." : "Войти"}
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, justifyContent: "center" }}>
               <Icon name="Lock" size={14} color="var(--taxi-green)" fallback="Shield" />

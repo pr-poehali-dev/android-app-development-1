@@ -124,9 +124,12 @@ export default function App() {
     api.updateDriver(id, changes as Record<string, unknown>);
   };
 
-  const handleAddDriver = (d: Driver) => {
+  const handleAddDriver = async (d: Driver) => {
     setDrivers((prev) => [...prev, d]);
-    api.addDriver(d as unknown as Record<string, unknown>);
+    const res = await api.addDriver(d as unknown as Record<string, unknown>);
+    if (!res || res.error) {
+      loadFromDb();
+    }
   };
 
   const handleUpdateDriverCar = (driverId: string, carInfo: DriverCarInfo) => {
