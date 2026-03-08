@@ -36,6 +36,23 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
     if (phone.length >= 10) setStep("code");
   };
 
+  const [passengerLoading, setPassengerLoading] = useState(false);
+
+  const registerPassenger = async () => {
+    if (passengerLoading) return;
+    setPassengerLoading(true);
+    const u: User = { id: `u_${Date.now()}`, name: "Пассажир", phone: `+7${phone}`, role: "passenger" };
+    const res = await api.authPassenger({ id: u.id, name: u.name, phone: u.phone });
+    setPassengerLoading(false);
+    if (res && res.id && !res.error) {
+      saveSession({ userId: res.id, role: "passenger", name: res.name, phone: res.phone });
+      onAuth({ id: res.id, name: res.name, phone: res.phone, role: "passenger" });
+    } else {
+      saveSession({ userId: u.id, role: u.role, name: u.name, phone: u.phone });
+      onAuth(u);
+    }
+  };
+
   const handleCodeChange = (val: string, idx: number) => {
     const next = [...code];
     next[idx] = val.slice(-1);
@@ -45,11 +62,7 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
       inputs[idx + 1]?.focus();
     }
     if (next.every((d) => d !== "") && idx === 3) {
-      setTimeout(() => {
-        const u: User = { id: `u_${Date.now()}`, name: "Пассажир", phone: `+7 ${phone}`, role: "passenger" };
-        saveSession({ userId: u.id, role: u.role, name: u.name, phone: u.phone });
-        onAuth(u);
-      }, 400);
+      setTimeout(() => registerPassenger(), 400);
     }
   };
 
@@ -259,12 +272,8 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
                   style={{ width: "var(--code-size)", height: "var(--code-size)", background: d ? "var(--taxi-yellow)" : "var(--taxi-surface)", border: `2px solid ${d ? "var(--taxi-yellow)" : "var(--taxi-border)"}`, borderRadius: "var(--btn-radius)", textAlign: "center", fontSize: "var(--code-font)", fontWeight: 700, color: d ? "var(--taxi-dark)" : "#F0F2F5", outline: "none", transition: "all 0.2s", fontFamily: "Montserrat" }} />
               ))}
             </div>
-            <button className="btn-yellow" onClick={() => {
-              const u: User = { id: `u_${Date.now()}`, name: "Пассажир", phone: `+7 ${phone}`, role: "passenger" };
-              saveSession({ userId: u.id, role: u.role, name: u.name, phone: u.phone });
-              onAuth(u);
-            }}>
-              Подтвердить
+            <button className="btn-yellow" onClick={registerPassenger} disabled={passengerLoading} style={{ opacity: passengerLoading ? 0.6 : 1 }}>
+              {passengerLoading ? "Вход..." : "Подтвердить"}
             </button>
             <div style={{ textAlign: "center", marginTop: 14 }}>
               <span style={{ fontSize: 12, color: "var(--taxi-muted)" }}>Не пришёл код? </span>
