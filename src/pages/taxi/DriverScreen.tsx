@@ -551,27 +551,25 @@ export default function DriverScreen({
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 {myOrder.passengerPhone ? (
-                  <a href={`tel:${myOrder.passengerPhone}`} style={{
-                    flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)",
-                    borderRadius: 14, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat",
-                    fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none",
+                  <a href={`tel:${myOrder.passengerPhone.replace(/\s/g, "")}`} style={{
+                    width: 48, height: 48, flexShrink: 0, background: "var(--taxi-green)", border: "none",
+                    borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none",
                   }}>
-                    <Icon name="Phone" size={16} color="var(--taxi-yellow)" /> Позвонить
+                    <Icon name="Phone" size={20} color="#fff" />
                   </a>
                 ) : (
-                  <button disabled style={{
-                    flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)",
-                    borderRadius: 14, color: "var(--taxi-muted)", fontSize: 13, cursor: "not-allowed", fontFamily: "Montserrat",
-                    fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  <div style={{
+                    width: 48, height: 48, flexShrink: 0, background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)",
+                    borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.4,
                   }}>
-                    <Icon name="Phone" size={16} color="var(--taxi-muted)" /> Позвонить
-                  </button>
+                    <Icon name="Phone" size={20} color="var(--taxi-muted)" />
+                  </div>
                 )}
                 <button onClick={() => setChatOpen(true)}
-                  style={{ flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 14, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                  <Icon name="MessageCircle" size={16} color="var(--taxi-yellow)" /> Чат
+                  style={{ flex: 1, padding: "12px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Icon name="MessageCircle" size={16} color="var(--taxi-yellow)" /> Написать пассажиру
                 </button>
               </div>
 
