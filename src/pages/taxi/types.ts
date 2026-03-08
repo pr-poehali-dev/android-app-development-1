@@ -123,18 +123,9 @@ export interface PassengerStats {
 
 export const LOGO_URL = "https://cdn.poehali.dev/projects/e03e7d24-4919-4d6e-81b9-d7fc9a11aa44/files/73a4c75d-4bc3-4bdf-bc99-805f9c78663b.jpg";
 
-export const INITIAL_DRIVERS: Driver[] = [
-  { id: "d1", name: "Алексей Козлов", phone: "+7 916 111-22-33", car: "Toyota Camry • А123БВ", carInfo: { brand: "Toyota", model: "Camry", plateNumber: "А123БВ" }, rating: 4.9, status: "active", autoAssign: true, distanceKm: 1.2, tripsCount: 234, tripsLast24h: 5, priority: 1, login: "kozlov", password: "driver1", hasAds: true, subscriptionDays: 30, subscriptionStart: Date.now() - 86400000 * 5, freeWork: false, registeredAt: "2025-12-01", autoAssignDeclines: 2, cancelledOrders: 3, autoAssignTrips: 150, freeTrips: 84, totalEarnings: 58000, totalKm: 4200, totalHours: 310 },
-  { id: "d2", name: "Иван Морозов", phone: "+7 916 444-55-66", car: "Kia Rio • В456ГД", carInfo: { brand: "Kia", model: "Rio", plateNumber: "В456ГД" }, rating: 4.7, status: "active", autoAssign: false, distanceKm: 3.5, tripsCount: 89, tripsLast24h: 2, priority: 1, login: "morozov", password: "driver2", hasAds: false, subscriptionDays: 15, subscriptionStart: Date.now() - 86400000 * 10, freeWork: false, registeredAt: "2026-01-15", autoAssignDeclines: 5, cancelledOrders: 1, autoAssignTrips: 30, freeTrips: 59, totalEarnings: 22000, totalKm: 1800, totalHours: 120 },
-  { id: "d3", name: "Дмитрий Рябов", phone: "+7 916 777-88-99", car: "Hyundai Solaris • Е789ЖЗ", carInfo: { brand: "Hyundai", model: "Solaris", plateNumber: "Е789ЖЗ" }, rating: 4.8, status: "busy", autoAssign: true, distanceKm: 5.1, tripsCount: 412, tripsLast24h: 8, priority: 2, login: "ryabov", password: "driver3", hasAds: true, subscriptionDays: 60, subscriptionStart: Date.now() - 86400000 * 3, freeWork: false, registeredAt: "2025-10-20", autoAssignDeclines: 1, cancelledOrders: 5, autoAssignTrips: 280, freeTrips: 132, totalEarnings: 105000, totalKm: 8900, totalHours: 620 },
-  { id: "d4", name: "Сергей Волков", phone: "+7 916 000-11-22", car: "Volkswagen Polo • И012КЛ", carInfo: { brand: "Volkswagen", model: "Polo", plateNumber: "И012КЛ" }, rating: 3.2, status: "restricted", autoAssign: false, distanceKm: 2.7, tripsCount: 44, tripsLast24h: 0, priority: 3, login: "volkov", password: "driver4", hasAds: false, subscriptionDays: 0, freeWork: false, registeredAt: "2026-02-01", autoAssignDeclines: 12, cancelledOrders: 8, autoAssignTrips: 10, freeTrips: 34, totalEarnings: 9500, totalKm: 620, totalHours: 45 },
-];
+export const INITIAL_DRIVERS: Driver[] = [];
 
-export const INITIAL_ORDERS: Order[] = [
-  { id: "o1", passengerId: "p1", passengerName: "Мария С.", passengerPhone: "+7 999 111-22-33", from: "Ленина, 12", to: "Аэропорт Домодедово", tariff: "economy", options: { children: false, childrenCount: 0, luggage: true, comment: "Большой чемодан" }, status: "pending", paymentMethod: "cash", tips: 0, discount: 0, distanceKm: 34, price: 849, createdAt: "14:32", createdTimestamp: Date.now() - 600000, freeAt: Date.now() - 300000 },
-  { id: "o2", passengerId: "p2", passengerName: "Андрей П.", passengerPhone: "+7 999 444-55-66", from: "Садовая, 5", to: "ТЦ Мега", tariff: "economy", options: { children: true, childrenCount: 2, luggage: false, comment: "Дети до 7 лет, нужно автокресло" }, status: "pending", paymentMethod: "transfer", tips: 100, discount: 0, distanceKm: 12, price: 342, createdAt: "14:45", createdTimestamp: Date.now() - 300000, freeAt: Date.now() - 60000 },
-  { id: "o3", passengerId: "p3", passengerName: "Ольга К.", passengerPhone: "+7 999 777-88-99", from: "Проспект Мира, 1", to: "ВДНХ", tariff: "economy", options: { children: false, childrenCount: 0, luggage: false, comment: "" }, status: "assigned", paymentMethod: "cash", tips: 50, discount: 0, distanceKm: 5, driverId: "d3", driverName: "Дмитрий Р.", driverCar: "Hyundai Solaris • Е789ЖЗ", price: 198, createdAt: "14:50", createdTimestamp: Date.now() - 120000 },
-];
+export const INITIAL_ORDERS: Order[] = [];
 
 export const INITIAL_SETTINGS: AppSettings = {
   priceFirstKm: 80,
@@ -156,11 +147,7 @@ export const INITIAL_SETTINGS: AppSettings = {
   adminPassword: "admin75reg",
 };
 
-export const INITIAL_PASSENGERS: User[] = [
-  { id: "p1", name: "Мария С.", phone: "+7 999 111-22-33", role: "passenger", registeredAt: "2026-01-10" },
-  { id: "p2", name: "Андрей П.", phone: "+7 999 444-55-66", role: "passenger", registeredAt: "2026-02-05" },
-  { id: "p3", name: "Ольга К.", phone: "+7 999 777-88-99", role: "passenger", registeredAt: "2026-02-15" },
-];
+export const INITIAL_PASSENGERS: User[] = [];
 
 export function calcOrderPrice(distKm: number, s: AppSettings, tariff: "economy" | "hourly" | "delivery"): number {
   if (tariff === "hourly") return s.pricePerHour;

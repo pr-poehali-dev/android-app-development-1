@@ -41,10 +41,10 @@ export default function App() {
     const data = await api.getState("admin");
     if (data && data.settings) {
       setSettings(data.settings);
-      if (data.drivers?.length > 0) setDrivers(data.drivers);
-      if (data.orders?.length > 0) setOrders(data.orders);
-      if (data.passengers?.length > 0) setPassengers(data.passengers);
-      if (data.supportMessages?.length > 0) setSupportMessages(data.supportMessages);
+      setDrivers(data.drivers || []);
+      setOrders(data.orders || []);
+      setPassengers(data.passengers || []);
+      setSupportMessages(data.supportMessages || []);
       setDbReady(true);
     }
   }, []);
