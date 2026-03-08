@@ -160,6 +160,7 @@ export default function AdminScreen({
 
   const [chatUser, setChatUser] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState("");
+  const [chatFilter, setChatFilter] = useState<"all" | "driver" | "passenger">("all");
 
   const [changePwUserId, setChangePwUserId] = useState<string | null>(null);
   const [userNewPw, setUserNewPw] = useState("");
@@ -1253,9 +1254,11 @@ export default function AdminScreen({
       <div className="animate-fade-slide-up">
         <div style={{ ...headingStyle, fontSize: 18, marginBottom: 16 }}>Тарифы и настройки</div>
 
+        <div style={sectionTitle}>Стоимость поездки</div>
+
         <div className="taxi-card" style={{ marginBottom: 12 }}>
           <div style={labelRow}>
-            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Первый км</span>
+            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>1-й километр</span>
             <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>
               {localSettings.priceFirstKm} ₽
             </span>
@@ -1273,7 +1276,7 @@ export default function AdminScreen({
 
         <div className="taxi-card" style={{ marginBottom: 12 }}>
           <div style={labelRow}>
-            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>За км</span>
+            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Со 2-го километра</span>
             <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>
               {localSettings.pricePerKm} ₽
             </span>
@@ -1291,7 +1294,7 @@ export default function AdminScreen({
 
         <div className="taxi-card" style={{ marginBottom: 12 }}>
           <div style={labelRow}>
-            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Грузовой тариф</span>
+            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Поездка за час (грузовое такси)</span>
             <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>
               {localSettings.pricePerHour} ₽/ч
             </span>
@@ -1306,6 +1309,8 @@ export default function AdminScreen({
             style={sliderStyle}
           />
         </div>
+
+        <div style={{ ...sectionTitle, marginTop: 16 }}>Ожидание</div>
 
         <div className="taxi-card" style={{ marginBottom: 12 }}>
           <div style={labelRow}>
@@ -1325,6 +1330,8 @@ export default function AdminScreen({
           />
         </div>
 
+        <div style={{ ...sectionTitle, marginTop: 16 }}>Авто-назначение</div>
+
         <div className="taxi-card" style={{ marginBottom: 12 }}>
           <div style={labelRow}>
             <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Радиус авто-назначения</span>
@@ -1342,6 +1349,54 @@ export default function AdminScreen({
             style={sliderStyle}
           />
         </div>
+
+        <div className="taxi-card" style={{ marginBottom: 12 }}>
+          <div style={labelRow}>
+            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Авто-назначение длительностью</span>
+            <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>
+              {Math.round(localSettings.freeOrderTimeoutMs / 60000)} мин
+            </span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={10}
+            step={1}
+            value={Math.round(localSettings.freeOrderTimeoutMs / 60000)}
+            onChange={(e) => setLocalSettings({ ...localSettings, freeOrderTimeoutMs: Number(e.target.value) * 60000 })}
+            style={sliderStyle}
+          />
+        </div>
+
+        <div className="taxi-card" style={{ marginBottom: 12 }}>
+          <div style={labelRow}>
+            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Режим авто-назначения</span>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(["rating", "trips", "ads"] as AutoAssignMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setLocalSettings({ ...localSettings, autoAssignMode: mode })}
+                style={{
+                  flex: 1,
+                  padding: "8px 4px",
+                  background: localSettings.autoAssignMode === mode ? "var(--taxi-yellow)" : "var(--taxi-surface)",
+                  border: `1px solid ${localSettings.autoAssignMode === mode ? "var(--taxi-yellow)" : "var(--taxi-border)"}`,
+                  borderRadius: 10,
+                  color: localSettings.autoAssignMode === mode ? "var(--taxi-dark)" : "var(--taxi-muted)",
+                  fontSize: 11,
+                  cursor: "pointer",
+                  fontFamily: "Montserrat",
+                  fontWeight: 700,
+                }}
+              >
+                {mode === "rating" ? "Рейтинг" : mode === "trips" ? "Поездки" : "Реклама"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ ...sectionTitle, marginTop: 16 }}>Скидки</div>
 
         <div className="taxi-card" style={{ marginBottom: 12 }}>
           <div style={labelRow}>
@@ -1392,55 +1447,23 @@ export default function AdminScreen({
             onChange={(e) => setLocalSettings({ ...localSettings, kmDiscount: Number(e.target.value) })}
             style={sliderStyle}
           />
-        </div>
-
-        <div className="taxi-card" style={{ marginBottom: 12 }}>
-          <div style={labelRow}>
-            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Режим авто-назначения</span>
-          </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(["rating", "trips", "ads"] as AutoAssignMode[]).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setLocalSettings({ ...localSettings, autoAssignMode: mode })}
-                style={{
-                  flex: 1,
-                  padding: "8px 4px",
-                  background: localSettings.autoAssignMode === mode ? "var(--taxi-yellow)" : "var(--taxi-surface)",
-                  border: `1px solid ${localSettings.autoAssignMode === mode ? "var(--taxi-yellow)" : "var(--taxi-border)"}`,
-                  borderRadius: 10,
-                  color: localSettings.autoAssignMode === mode ? "var(--taxi-dark)" : "var(--taxi-muted)",
-                  fontSize: 11,
-                  cursor: "pointer",
-                  fontFamily: "Montserrat",
-                  fontWeight: 700,
-                }}
-              >
-                {mode === "rating" ? "Рейтинг" : mode === "trips" ? "Поездки" : "Реклама"}
-              </button>
-            ))}
+          <div
+            style={{
+              marginTop: 10,
+              padding: "8px 10px",
+              background: "var(--taxi-surface)",
+              borderRadius: 8,
+              fontSize: 11,
+              color: "var(--taxi-muted)",
+              fontFamily: "Golos Text",
+              lineHeight: 1.5,
+            }}
+          >
+            Скидка действует только на километры сверх порога. Например, при пороге {localSettings.kmDiscountThreshold} км и заказе на {localSettings.kmDiscountThreshold + 4} км, скидка применяется к 4 км.
           </div>
         </div>
 
-        <div className="taxi-card" style={{ marginBottom: 12 }}>
-          <div style={labelRow}>
-            <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Свободный заказ через</span>
-            <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>
-              {Math.round(localSettings.freeOrderTimeoutMs / 60000)} мин
-            </span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={10}
-            step={1}
-            value={Math.round(localSettings.freeOrderTimeoutMs / 60000)}
-            onChange={(e) => setLocalSettings({ ...localSettings, freeOrderTimeoutMs: Number(e.target.value) * 60000 })}
-            style={sliderStyle}
-          />
-        </div>
-
-        <div style={sectionTitle}>Временные коэффициенты</div>
+        <div style={{ ...sectionTitle, marginTop: 16 }}>Временные коэффициенты</div>
         <div className="taxi-card" style={{ marginBottom: 12 }}>
           {localSettings.timeCoefficients.map((tc, idx) => (
             <div
@@ -1593,7 +1616,7 @@ export default function AdminScreen({
           )}
         </div>
 
-        <div style={sectionTitle}>Предварительный расчёт</div>
+        <div style={{ ...sectionTitle, marginTop: 16 }}>Предварительный расчёт</div>
         <div className="taxi-card" style={{ marginBottom: 16 }}>
           <div style={labelRow}>
             <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Расстояние</span>
@@ -1639,6 +1662,133 @@ export default function AdminScreen({
 
   const renderChat = () => {
     const groupEntries = Object.entries(chatGroups);
+    const unreadDrivers = groupEntries.filter(([, g]) => g.role === "driver").reduce((sum, [, g]) => sum + g.messages.filter((m) => m.fromRole !== "admin" && !m.read).length, 0);
+    const unreadPassengers = groupEntries.filter(([, g]) => g.role === "passenger").reduce((sum, [, g]) => sum + g.messages.filter((m) => m.fromRole !== "admin" && !m.read).length, 0);
+    const unreadAll = unreadDrivers + unreadPassengers;
+
+    const filteredEntries = groupEntries.filter(([, group]) => {
+      if (chatFilter === "all") return true;
+      return group.role === chatFilter;
+    });
+
+    if (driverChatOpen) {
+      return (
+        <div className="animate-fade-slide-up" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <button
+              onClick={() => setDriverChatOpen(false)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--taxi-yellow)", padding: 0 }}
+            >
+              <Icon name="ArrowLeft" size={20} />
+            </button>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                background: "var(--taxi-surface)",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="Users" size={16} color="var(--taxi-muted)" />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 600 }}>Общий чат водителей</div>
+              <div style={{ fontSize: 11, color: "var(--taxi-muted)" }}>
+                {driverChatMessages.length} сообщений
+              </div>
+            </div>
+          </div>
+
+          <div
+            ref={driverChatRef}
+            style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}
+          >
+            {driverChatLoading && driverChatMessages.length === 0 && (
+              <div style={{ textAlign: "center", padding: "var(--page-px)", color: "var(--taxi-muted)", fontSize: 13 }}>
+                Загрузка...
+              </div>
+            )}
+            {!driverChatLoading && driverChatMessages.length === 0 && (
+              <div style={{ textAlign: "center", padding: "var(--page-px)", color: "var(--taxi-muted)", fontSize: 13 }}>
+                Нет сообщений
+              </div>
+            )}
+            {driverChatMessages.map((msg, i) => {
+              const isAdmin = msg.driverId === "admin_1";
+              return (
+                <div
+                  key={msg.id || i}
+                  style={{
+                    alignSelf: isAdmin ? "flex-end" : "flex-start",
+                    maxWidth: "80%",
+                  }}
+                >
+                  {!isAdmin && (
+                    <div style={{ fontSize: 10, color: "var(--taxi-yellow)", marginBottom: 2, fontWeight: 600 }}>
+                      {msg.driverName}
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: isAdmin ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                      background: isAdmin ? "var(--taxi-yellow)" : "var(--taxi-surface)",
+                      color: isAdmin ? "var(--taxi-dark)" : "#F0F2F5",
+                      fontSize: 13,
+                      fontFamily: "Golos Text",
+                    }}
+                  >
+                    {msg.text}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "var(--taxi-muted)",
+                      marginTop: 2,
+                      textAlign: isAdmin ? "right" : "left",
+                    }}
+                  >
+                    {msg.time}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              className="taxi-input"
+              placeholder="Написать в общий чат..."
+              value={driverChatInput}
+              onChange={(e) => setDriverChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSendDriverChat()}
+              style={{ flex: 1, padding: "10px 14px", fontSize: 13 }}
+            />
+            <button
+              onClick={handleSendDriverChat}
+              style={{
+                width: 44,
+                height: 44,
+                background: "var(--taxi-yellow)",
+                border: "none",
+                borderRadius: 14,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="Send" size={18} color="var(--taxi-dark)" />
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     if (chatUser) {
       const group = chatGroups[chatUser];
@@ -1751,14 +1901,115 @@ export default function AdminScreen({
     return (
       <div className="animate-fade-slide-up">
         <div style={{ ...headingStyle, fontSize: 18, marginBottom: 16 }}>Чат поддержки</div>
-        {groupEntries.length === 0 ? (
+
+        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+          {([
+            { key: "all" as const, label: "Все", count: unreadAll },
+            { key: "driver" as const, label: "Водители", count: unreadDrivers },
+            { key: "passenger" as const, label: "Пассажиры", count: unreadPassengers },
+          ]).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setChatFilter(tab.key)}
+              style={{
+                flex: 1,
+                padding: "8px 4px",
+                background: chatFilter === tab.key ? "var(--taxi-yellow)" : "var(--taxi-surface)",
+                border: `1px solid ${chatFilter === tab.key ? "var(--taxi-yellow)" : "var(--taxi-border)"}`,
+                borderRadius: 10,
+                color: chatFilter === tab.key ? "var(--taxi-dark)" : "var(--taxi-muted)",
+                fontSize: 11,
+                cursor: "pointer",
+                fontFamily: "Montserrat",
+                fontWeight: 700,
+                position: "relative",
+              }}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -6,
+                    right: -4,
+                    minWidth: 16,
+                    height: 16,
+                    background: "var(--taxi-red)",
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 9,
+                    color: "#fff",
+                    fontWeight: 700,
+                    padding: "0 4px",
+                  }}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div
+          className="taxi-card animate-fade-slide-up"
+          style={{ marginBottom: 12, cursor: "pointer" }}
+          onClick={() => setDriverChatOpen(true)}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                background: "rgba(255,204,0,0.12)",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="Users" size={18} color="var(--taxi-yellow)" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, color: "#F0F2F5", fontWeight: 600 }}>Общий чат водителей</span>
+                <span style={{ ...badgeBase, background: "rgba(255,204,0,0.15)", color: "var(--taxi-yellow)" }}>
+                  <Icon name="Users" size={9} /> Общий чат
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--taxi-muted)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  marginTop: 2,
+                }}
+              >
+                {driverChatMessages.length > 0
+                  ? driverChatMessages[driverChatMessages.length - 1].text
+                  : "Нет сообщений"}
+              </div>
+            </div>
+            <Icon name="ChevronRight" size={16} color="var(--taxi-muted)" />
+          </div>
+        </div>
+
+        {filteredEntries.length === 0 && groupEntries.length === 0 ? (
           <div className="taxi-card" style={{ textAlign: "center", padding: 30 }}>
             <Icon name="MessageSquare" size={36} color="var(--taxi-muted)" />
             <div style={{ ...headingStyle, fontSize: 15, marginTop: 12, marginBottom: 6 }}>Нет обращений</div>
             <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Сообщения от пассажиров и водителей появятся здесь</div>
           </div>
+        ) : filteredEntries.length === 0 ? (
+          <div className="taxi-card" style={{ textAlign: "center", padding: 20 }}>
+            <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Нет обращений в этой категории</div>
+          </div>
         ) : (
-          groupEntries.map(([userId, group], idx) => {
+          filteredEntries.map(([userId, group], idx) => {
             const lastMsg = group.messages[group.messages.length - 1];
             const unread = group.messages.filter((m) => m.fromRole !== "admin" && !m.read).length;
 
