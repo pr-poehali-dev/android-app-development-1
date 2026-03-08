@@ -51,19 +51,21 @@ export default function App() {
 
   useEffect(() => {
     requestNotificationPermission();
-    loadFromDb();
-    const session = loadSession();
-    if (session) {
-      if (session.role === "admin") {
-        setUser({ id: session.userId, name: session.name, phone: session.phone, role: "admin" });
-      } else if (session.role === "driver") {
-        const d = session.driverLogin ? INITIAL_DRIVERS.find((dr) => dr.login === session.driverLogin) : undefined;
-        if (d) setUser({ id: d.id, name: d.name, phone: d.phone, role: "driver" });
-      } else {
-        setUser({ id: session.userId, name: session.name, phone: session.phone, role: "passenger" });
+    const init = async () => {
+      await loadFromDb();
+      const session = loadSession();
+      if (session) {
+        if (session.role === "admin") {
+          setUser({ id: session.userId, name: session.name, phone: session.phone, role: "admin" });
+        } else if (session.role === "driver") {
+          setUser({ id: session.userId, name: session.name, phone: session.phone, role: "driver" });
+        } else {
+          setUser({ id: session.userId, name: session.name, phone: session.phone, role: "passenger" });
+        }
       }
-    }
-    setLoaded(true);
+      setLoaded(true);
+    };
+    init();
   }, [loadFromDb]);
 
   useEffect(() => {

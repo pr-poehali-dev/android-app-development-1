@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import {
   Order,
@@ -91,6 +91,16 @@ export default function DriverScreen({
   const myOrder = orders.find(
     (o) => o.driverId === driver.id && !["done", "cancelled"].includes(o.status)
   );
+
+  const driverRestoredRef = useRef(false);
+  useEffect(() => {
+    if (driverRestoredRef.current) return;
+    if (myOrder) {
+      driverRestoredRef.current = true;
+      setActiveView("ride");
+      setTab("orders");
+    }
+  }, [myOrder]);
 
   const now = Date.now();
   const freeOrders = orders
@@ -187,13 +197,36 @@ export default function DriverScreen({
     setAutoAssignOffer(null);
   };
 
-  const sendChatMessage = () => {
-    if (!chatInput.trim()) return;
-    setChatMessages((prev) => [...prev, { from: "driver", text: chatInput }]);
+  const prevRideChatCountRef = useRef(0);
+  const loadRideChat = useCallback(async () => {
+    if (!myOrder) return;
+    const res = await api.getRideChat(myOrder.id);
+    if (res?.messages) {
+      setChatMessages(res.messages.map((m: { from: string; text: string }) => ({ from: m.from, text: m.text })));
+      if (res.messages.length > prevRideChatCountRef.current) {
+        const newMsgs = res.messages.slice(prevRideChatCountRef.current);
+        const incoming = newMsgs.filter((m: { from: string }) => m.from === "passenger");
+        if (incoming.length > 0 && prevRideChatCountRef.current > 0) {
+          playNotificationSound("message");
+        }
+      }
+      prevRideChatCountRef.current = res.messages.length;
+    }
+  }, [myOrder]);
+
+  useEffect(() => {
+    if (!myOrder) { prevRideChatCountRef.current = 0; return; }
+    loadRideChat();
+    const interval = setInterval(loadRideChat, 3000);
+    return () => clearInterval(interval);
+  }, [myOrder, loadRideChat]);
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || !myOrder) return;
+    const text = chatInput.trim();
+    setChatMessages((prev) => [...prev, { from: "driver", text }]);
     setChatInput("");
-    setTimeout(() => {
-      setChatMessages((prev) => [...prev, { from: "passenger", text: "Хорошо, жду!" }]);
-    }, 1500);
+    await api.sendRideChat(myOrder.id, "driver", driver.id, driver.name, text);
   };
 
   const sendSupportMessage = () => {
@@ -215,6 +248,7 @@ export default function DriverScreen({
   const handleStatusChange = (orderId: string, nextStatus: Order["status"]) => {
     onUpdateOrderStatus(orderId, nextStatus);
     if (nextStatus === "done") {
+      api.completeOrder(orderId, driver.id);
       setActiveView(null);
       setChatOpen(false);
       setChatMessages([]);

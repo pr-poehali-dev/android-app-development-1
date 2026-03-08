@@ -111,8 +111,12 @@ def handler(event, context):
             return ok({'ok': True})
 
         if act == 'accept-order':
-            cur.execute("UPDATE orders SET status='assigned',driver_id='%s',driver_name='%s',eta_minutes=%s WHERE id='%s'" % (
-                e(b.get('driverId')), e(b.get('driverName')), b.get('eta', 5), e(b.get('orderId'))))
+            did = e(b.get('driverId'))
+            cur.execute("SELECT car_display FROM drivers WHERE id='%s'" % did)
+            dr = cur.fetchone()
+            dcar = dr['car_display'] if dr else ''
+            cur.execute("UPDATE orders SET status='assigned',driver_id='%s',driver_name='%s',driver_car='%s',eta_minutes=%s WHERE id='%s'" % (
+                did, e(b.get('driverName')), e(dcar), b.get('eta', 5), e(b.get('orderId'))))
             return ok({'ok': True})
 
         if act == 'update-settings':
@@ -198,6 +202,36 @@ def handler(event, context):
                 t = float(r['rating']) * int(r['trips_count']) + rt
                 nc = int(r['trips_count']) + 1
                 cur.execute("UPDATE drivers SET rating=%s,trips_count=%s WHERE id='%s'" % (round(t / nc, 1), nc, did))
+            return ok({'ok': True})
+
+        if act == 'send-ride-chat':
+            oid = e(b.get('orderId', ''))
+            sr = e(b.get('senderRole', ''))
+            sid = e(b.get('senderId', ''))
+            sn = e(b.get('senderName', ''))
+            txt = e(b.get('text', ''))
+            if not txt:
+                return err(400, 'Empty message')
+            cur.execute("INSERT INTO ride_chat(order_id,sender_role,sender_id,sender_name,text) VALUES('%s','%s','%s','%s','%s') RETURNING id,created_at" % (oid, sr, sid, sn, txt))
+            r = cur.fetchone()
+            return ok({'id': r['id'], 'time': str(r['created_at'])[11:16]})
+
+        if act == 'get-ride-chat':
+            oid = e(b.get('orderId', ''))
+            cur.execute("SELECT id,order_id,sender_role,sender_id,sender_name,text,created_at FROM ride_chat WHERE order_id='%s' ORDER BY created_at" % oid)
+            msgs = [{'id': r['id'], 'orderId': r['order_id'], 'from': r['sender_role'], 'senderId': r['sender_id'], 'senderName': r['sender_name'], 'text': r['text'], 'time': str(r['created_at'])[11:16]} for r in cur.fetchall()]
+            return ok({'messages': msgs})
+
+        if act == 'complete-order':
+            oid = e(b.get('orderId', ''))
+            did = e(b.get('driverId', ''))
+            cur.execute("UPDATE orders SET status='done' WHERE id='%s'" % oid)
+            cur.execute("SELECT distance_km,price FROM orders WHERE id='%s'" % oid)
+            o = cur.fetchone()
+            if o and did:
+                km = float(o['distance_km'])
+                earn = float(o['price'])
+                cur.execute("UPDATE drivers SET trips_count=trips_count+1,total_earnings=total_earnings+%s,total_km=total_km+%s WHERE id='%s'" % (earn, km, did))
             return ok({'ok': True})
 
         return err(404, 'Unknown action')

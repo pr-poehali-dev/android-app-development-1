@@ -52,6 +52,9 @@ export const api = {
   rateDriver: (driverId: string, rating: number) => call("rate-driver", { driverId, rating }),
   getDriverChat: () => call("get-driver-chat", {}),
   sendDriverChat: (driverId: string, driverName: string, text: string) => call("send-driver-chat", { driverId, driverName, text }),
+  sendRideChat: (orderId: string, senderRole: string, senderId: string, senderName: string, text: string) => call("send-ride-chat", { orderId, senderRole, senderId, senderName, text }),
+  getRideChat: (orderId: string) => call("get-ride-chat", { orderId }),
+  completeOrder: (orderId: string, driverId: string) => call("complete-order", { orderId, driverId }),
   isConnected: () => !!API_URL,
 };
 

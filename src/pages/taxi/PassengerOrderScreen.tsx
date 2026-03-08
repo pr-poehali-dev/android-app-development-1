@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import YandexMap from "@/components/YandexMap";
 import AddressInput from "@/components/AddressInput";
 import { Order, User, AppSettings, Driver, LOGO_URL, PaymentMethod, calcOrderPrice } from "./types";
 import { playNotificationSound, sendPush } from "./notifications";
+import api from "./api";
 
 interface Props {
   user: User;
@@ -61,9 +62,33 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     setTimeout(() => setToast(null), 4000);
   };
 
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    const active = orders.find(
+      (o) => o.passengerId === user.id && !["done", "cancelled"].includes(o.status)
+    );
+    if (active) {
+      setActiveOrderId(active.id);
+      setFrom(active.from || "");
+      setTo(active.to || "");
+      setTariff(active.tariff);
+      const statusToStep: Record<string, OrderStep> = {
+        pending: "searching",
+        assigned: "found",
+        waiting: "found",
+        arrived: "arrived",
+        inprogress: "inprogress",
+      };
+      setStep(statusToStep[active.status] || "searching");
+      if (active.etaMinutes) setEtaMinutes(active.etaMinutes);
+    }
+  }, [orders, user.id]);
+
   useEffect(() => {
     if (step === "found") {
-      setEtaMinutes(Math.floor(Math.random() * 6) + 3);
+      setEtaMinutes((prev) => prev || Math.floor(Math.random() * 6) + 3);
       showToast("Водитель найден!", "Едет к вам");
       playNotificationSound("arrive");
       sendPush("Taxi", "Водитель найден и едет к вам!");
@@ -172,10 +197,6 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     onOrderCreate(order);
     setActiveOrderId(order.id);
     setStep("searching");
-    setTimeout(() => setStep("found"), 3000);
-    setTimeout(() => setStep("arrived"), 12000);
-    setTimeout(() => setStep("inprogress"), 18000);
-    setTimeout(() => setStep("rating"), 26000);
   };
 
   const handleCancel = () => {
@@ -201,14 +222,57 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     showToast("Спасибо за оценку!", "Это помогает улучшать сервис");
   };
 
-  const sendChatMessage = () => {
-    if (!chatInput.trim()) return;
-    setChatMessages(prev => [...prev, { from: "passenger", text: chatInput }]);
+  const prevStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeOrderId) return;
+    const order = orders.find((o) => o.id === activeOrderId);
+    if (!order) return;
+    const prevStatus = prevStatusRef.current;
+    prevStatusRef.current = order.status;
+    if (prevStatus === order.status) return;
+    if (order.status === "assigned" && step === "searching") {
+      setStep("found");
+    } else if (order.status === "arrived" && (step === "searching" || step === "found")) {
+      setStep("arrived");
+    } else if (order.status === "inprogress" && step !== "inprogress") {
+      setStep("inprogress");
+    } else if (order.status === "done" && step !== "rating") {
+      setStep("rating");
+    } else if (order.status === "cancelled") {
+      resetOrder();
+    }
+  }, [orders, activeOrderId, step]);
+
+  const prevChatCountRef = useRef(0);
+  const loadRideChat = useCallback(async () => {
+    if (!activeOrderId) return;
+    const res = await api.getRideChat(activeOrderId);
+    if (res?.messages) {
+      setChatMessages(res.messages.map((m: { from: string; text: string; senderName?: string }) => ({ from: m.from, text: m.text })));
+      if (res.messages.length > prevChatCountRef.current) {
+        const newMsgs = res.messages.slice(prevChatCountRef.current);
+        const incoming = newMsgs.filter((m: { from: string }) => m.from === "driver");
+        if (incoming.length > 0 && prevChatCountRef.current > 0) {
+          playNotificationSound("message");
+        }
+      }
+      prevChatCountRef.current = res.messages.length;
+    }
+  }, [activeOrderId]);
+
+  useEffect(() => {
+    if (!activeOrderId || step === "form" || step === "rating") return;
+    loadRideChat();
+    const interval = setInterval(loadRideChat, 3000);
+    return () => clearInterval(interval);
+  }, [activeOrderId, step, loadRideChat]);
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || !activeOrderId) return;
+    const text = chatInput.trim();
+    setChatMessages(prev => [...prev, { from: "passenger", text }]);
     setChatInput("");
-    setTimeout(() => {
-      setChatMessages(prev => [...prev, { from: "driver", text: "Хорошо, понял!" }]);
-      playNotificationSound("message");
-    }, 1500);
+    await api.sendRideChat(activeOrderId, "passenger", user.id, user.name, text);
   };
 
   const routeLabel = isDelivery ? `Доставка: ${deliveryAddress}` : `${from} → ${to}`;
