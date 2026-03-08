@@ -171,6 +171,8 @@ export default function AdminScreen({
   const [driverChatLoading, setDriverChatLoading] = useState(false);
 
   const driverChatRef = useRef<HTMLDivElement>(null);
+  const prevSupportCountRef = useRef(supportMessages.length);
+  const prevDriverChatCountRef = useRef(0);
 
   const freeOrders = orders.filter((o) => o.status === "pending");
   const inWorkOrders = orders.filter((o) => o.status === "assigned" || o.status === "waiting" || o.status === "arrived" || o.status === "inprogress");
@@ -238,6 +240,40 @@ export default function AdminScreen({
       driverChatRef.current.scrollTop = driverChatRef.current.scrollHeight;
     }
   }, [driverChatMessages, driverChatOpen]);
+
+  useEffect(() => {
+    const newCount = supportMessages.length;
+    if (newCount > prevSupportCountRef.current) {
+      const newMessages = supportMessages.slice(prevSupportCountRef.current);
+      const incoming = newMessages.filter((m) => m.fromRole !== "admin");
+      if (incoming.length > 0) {
+        const last = incoming[incoming.length - 1];
+        playNotificationSound("message");
+        sendPush(
+          `Новое сообщение от ${last.fromName}`,
+          last.text.length > 80 ? last.text.slice(0, 80) + "…" : last.text
+        );
+      }
+    }
+    prevSupportCountRef.current = newCount;
+  }, [supportMessages]);
+
+  useEffect(() => {
+    const newCount = driverChatMessages.length;
+    if (newCount > prevDriverChatCountRef.current && prevDriverChatCountRef.current > 0) {
+      const newMsgs = driverChatMessages.slice(prevDriverChatCountRef.current);
+      const incoming = newMsgs.filter((m) => m.driverId !== "admin_1");
+      if (incoming.length > 0) {
+        const last = incoming[incoming.length - 1];
+        playNotificationSound("message");
+        sendPush(
+          `Общий чат: ${last.driverName}`,
+          last.text.length > 80 ? last.text.slice(0, 80) + "…" : last.text
+        );
+      }
+    }
+    prevDriverChatCountRef.current = newCount;
+  }, [driverChatMessages]);
 
   const handleChangePassword = () => {
     if (oldPw !== settings.adminPassword) {
