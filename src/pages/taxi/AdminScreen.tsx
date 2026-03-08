@@ -179,6 +179,10 @@ export default function AdminScreen({
   const activeOrders = [...freeOrders, ...inWorkOrders];
   const onlineDrivers = drivers.filter((d) => d.status === "active" || d.status === "busy");
 
+  const totalUnreadChat = useMemo(() => {
+    return supportMessages.filter((m) => m.fromRole !== "admin" && !m.read).length;
+  }, [supportMessages]);
+
   const chatGroups = useMemo(() => {
     const groups: Record<string, { name: string; role: string; messages: SupportMessage[] }> = {};
     for (const msg of supportMessages) {
@@ -2139,7 +2143,31 @@ export default function AdminScreen({
             className={`nav-item ${tab === item.id ? "active" : ""}`}
             onClick={() => setTab(item.id)}
           >
-            <Icon name={item.icon} size={22} />
+            <div style={{ position: "relative", display: "inline-flex" }}>
+              <Icon name={item.icon} size={22} />
+              {item.id === "chat" && totalUnreadChat > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -5,
+                    right: -8,
+                    minWidth: 16,
+                    height: 16,
+                    background: "var(--taxi-red)",
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 9,
+                    color: "#fff",
+                    fontWeight: 700,
+                    padding: "0 4px",
+                  }}
+                >
+                  {totalUnreadChat > 99 ? "99+" : totalUnreadChat}
+                </span>
+              )}
+            </div>
             <span>{item.label}</span>
           </button>
         ))}
