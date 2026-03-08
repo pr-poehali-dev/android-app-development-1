@@ -26,8 +26,13 @@ async function call(action: string, body?: Record<string, unknown>) {
       headers: { "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
     });
-    return res.json();
-  } catch {
+    const data = await res.json();
+    if (!res.ok && data?.error) {
+      console.error(`API ${action}:`, data.error);
+    }
+    return data;
+  } catch (err) {
+    console.error(`Fetch error:`, err, `for ${API_URL}?action=${action}`);
     return null;
   }
 }

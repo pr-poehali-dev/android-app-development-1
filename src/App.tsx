@@ -36,6 +36,7 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [dbReady, setDbReady] = useState(false);
   const [toast, setToast] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const pendingDriversRef = useRef<Set<string>>(new Set());
 
   const showToast = (text: string, type: "success" | "error" = "success") => {
     setToast({ text, type });
@@ -47,10 +48,19 @@ export default function App() {
     const data = await api.getState("admin");
     if (data && data.settings) {
       setSettings(data.settings);
-      setDrivers(data.drivers || []);
       setOrders(data.orders || []);
       setPassengers(data.passengers || []);
       setSupportMessages(data.supportMessages || []);
+      const serverDrivers = data.drivers || [];
+      if (pendingDriversRef.current.size > 0) {
+        setDrivers((prev) => {
+          const serverIds = new Set(serverDrivers.map((d: Driver) => d.id));
+          const pendingLocal = prev.filter((d) => pendingDriversRef.current.has(d.id) && !serverIds.has(d.id));
+          return [...serverDrivers, ...pendingLocal];
+        });
+      } else {
+        setDrivers(serverDrivers);
+      }
       setDbReady(true);
     }
   }, []);
@@ -137,12 +147,17 @@ export default function App() {
   };
 
   const handleAddDriver = async (d: Driver) => {
+    pendingDriversRef.current.add(d.id);
     setDrivers((prev) => [...prev, d]);
+
     let res = await api.addDriver(d as unknown as Record<string, unknown>);
     if (!res) {
       await new Promise((r) => setTimeout(r, 3000));
       res = await api.addDriver(d as unknown as Record<string, unknown>);
     }
+
+    pendingDriversRef.current.delete(d.id);
+
     if (res && res.error) {
       setDrivers((prev) => prev.filter((dr) => dr.id !== d.id));
       showToast(res.error, "error");
@@ -150,7 +165,8 @@ export default function App() {
       showToast(`Водитель ${d.name} добавлен`, "success");
       loadFromDb();
     } else {
-      showToast("Нет связи с сервером. Водитель сохранён локально", "error");
+      showToast("Нет связи с сервером. Попробуйте позже", "error");
+      setDrivers((prev) => prev.filter((dr) => dr.id !== d.id));
     }
   };
 
