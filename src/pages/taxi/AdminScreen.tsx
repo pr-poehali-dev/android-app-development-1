@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import {
   Driver,
@@ -12,6 +12,7 @@ import {
   subscriptionDaysLeft,
 } from "./types";
 import { playNotificationSound, sendPush } from "./notifications";
+import api from "./api";
 
 interface Props {
   drivers: Driver[];
@@ -102,6 +103,15 @@ function statusColor(status: string) {
   return { bg: "var(--taxi-surface)", color: "var(--taxi-muted)" };
 }
 
+interface DriverChatMessage {
+  id?: string;
+  driverId: string;
+  driverName: string;
+  text: string;
+  time?: string;
+  timestamp?: number;
+}
+
 export default function AdminScreen({
   drivers,
   orders,
@@ -154,6 +164,13 @@ export default function AdminScreen({
   const [changePwUserId, setChangePwUserId] = useState<string | null>(null);
   const [userNewPw, setUserNewPw] = useState("");
 
+  const [driverChatOpen, setDriverChatOpen] = useState(false);
+  const [driverChatMessages, setDriverChatMessages] = useState<DriverChatMessage[]>([]);
+  const [driverChatInput, setDriverChatInput] = useState("");
+  const [driverChatLoading, setDriverChatLoading] = useState(false);
+
+  const driverChatRef = useRef<HTMLDivElement>(null);
+
   const freeOrders = orders.filter((o) => o.status === "pending");
   const inWorkOrders = orders.filter((o) => o.status === "assigned" || o.status === "waiting" || o.status === "arrived" || o.status === "inprogress");
   const activeOrders = [...freeOrders, ...inWorkOrders];
@@ -186,6 +203,40 @@ export default function AdminScreen({
     Object.values(groups).forEach((g) => g.messages.sort((a, b) => a.timestamp - b.timestamp));
     return groups;
   }, [supportMessages]);
+
+  useEffect(() => {
+    if (!driverChatOpen) return;
+    let cancelled = false;
+    const load = async () => {
+      setDriverChatLoading(true);
+      const res = await api.getDriverChat();
+      if (!cancelled && res && Array.isArray(res.messages)) {
+        setDriverChatMessages(res.messages);
+      } else if (!cancelled && res && Array.isArray(res)) {
+        setDriverChatMessages(res);
+      }
+      setDriverChatLoading(false);
+    };
+    load();
+    const interval = setInterval(async () => {
+      const res = await api.getDriverChat();
+      if (!cancelled && res && Array.isArray(res.messages)) {
+        setDriverChatMessages(res.messages);
+      } else if (!cancelled && res && Array.isArray(res)) {
+        setDriverChatMessages(res);
+      }
+    }, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [driverChatOpen]);
+
+  useEffect(() => {
+    if (driverChatOpen && driverChatRef.current) {
+      driverChatRef.current.scrollTop = driverChatRef.current.scrollHeight;
+    }
+  }, [driverChatMessages, driverChatOpen]);
 
   const handleChangePassword = () => {
     if (oldPw !== settings.adminPassword) {
@@ -243,7 +294,7 @@ export default function AdminScreen({
   };
 
   const handleAddDriver = () => {
-    if (!newLogin.trim() || !newPassword.trim() || !newName.trim() || !newPhone.trim()) return;
+    if (!newLogin.trim() || !newPassword.trim() || !newName.trim()) return;
     const driver: Driver = {
       id: `d_${Date.now()}`,
       name: newName.trim(),
@@ -311,54 +362,45 @@ export default function AdminScreen({
     setUserNewPw("");
   };
 
+  const handleSendDriverChat = async () => {
+    if (!driverChatInput.trim()) return;
+    const text = driverChatInput.trim();
+    setDriverChatInput("");
+    await api.sendDriverChat("admin_1", "Администратор", text);
+    const res = await api.getDriverChat();
+    if (res && Array.isArray(res.messages)) {
+      setDriverChatMessages(res.messages);
+    } else if (res && Array.isArray(res)) {
+      setDriverChatMessages(res);
+    }
+  };
+
+  const handleBanDriver = (driverId: string) => {
+    onUpdateDriver(driverId, { status: "restricted" });
+  };
+
   const renderOverview = () => (
     <div className="animate-fade-slide-up">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div>
-          <h1 style={{ ...headingStyle, fontSize: 22, marginBottom: 2 }}>Администратор</h1>
-          <div style={{ fontSize: 12, color: "var(--taxi-muted)" }}>Панель управления</div>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={() => setPwModal(true)}
-            style={{
-              padding: "8px 12px",
-              background: "var(--taxi-surface)",
-              border: "1px solid var(--taxi-border)",
-              borderRadius: 12,
-              color: "#F0F2F5",
-              fontSize: 12,
-              cursor: "pointer",
-              fontFamily: "Golos Text",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-            }}
-          >
-            <Icon name="Lock" size={14} />
-            Пароль
-          </button>
-          <button
-            onClick={onLogout}
-            style={{
-              padding: "8px 12px",
-              background: "rgba(239,68,68,0.1)",
-              border: "1px solid rgba(239,68,68,0.3)",
-              borderRadius: 12,
-              color: "var(--taxi-red)",
-              fontSize: 12,
-              cursor: "pointer",
-              fontFamily: "Golos Text",
-              fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-            }}
-          >
-            <Icon name="LogOut" size={14} />
-            Выйти
-          </button>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <h1 style={{ ...headingStyle, fontSize: 22, marginBottom: 2 }}>Администратор</h1>
+        <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginBottom: 6 }}>Панель управления</div>
+        <button
+          onClick={() => setPwModal(true)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            color: "var(--taxi-yellow)",
+            fontSize: 12,
+            cursor: "pointer",
+            fontFamily: "Golos Text",
+            textDecoration: "none",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+        >
+          Сменить пароль
+        </button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
@@ -385,13 +427,13 @@ export default function AdminScreen({
       ) : (
         activeOrders.map((order, idx) => {
           const sc = statusColor(order.status);
-          const canCancel = order.status === "pending" || order.status === "assigned";
+          const canCancel = order.status !== "done" && order.status !== "cancelled";
           return (
             <div
               key={order.id}
               className="taxi-card animate-fade-slide-up"
-              style={{ marginBottom: 8, animationDelay: `${idx * 0.05}s`, cursor: order.status === "pending" ? "pointer" : "default" }}
-              onClick={() => order.status === "pending" && handleOpenOrderModal(order)}
+              style={{ marginBottom: 8, animationDelay: `${idx * 0.05}s`, cursor: "pointer" }}
+              onClick={() => handleOpenOrderModal(order)}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -484,6 +526,56 @@ export default function AdminScreen({
         ))
       )}
 
+      <div
+        className="taxi-card"
+        style={{ marginTop: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "14px 16px" }}
+        onClick={() => setDriverChatOpen(true)}
+      >
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            background: "rgba(96,165,250,0.15)",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Icon name="MessageCircle" size={20} color="#60A5FA" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, color: "#F0F2F5", fontWeight: 600 }}>Водительский чат</div>
+          <div style={{ fontSize: 11, color: "var(--taxi-muted)" }}>Общий чат с водителями</div>
+        </div>
+        <Icon name="ChevronRight" size={18} color="var(--taxi-muted)" />
+      </div>
+
+      <button
+        onClick={onLogout}
+        style={{
+          width: "100%",
+          marginTop: 24,
+          padding: "14px",
+          background: "rgba(239,68,68,0.1)",
+          border: "1px solid rgba(239,68,68,0.3)",
+          borderRadius: 14,
+          color: "var(--taxi-red)",
+          fontSize: 14,
+          cursor: "pointer",
+          fontFamily: "Golos Text",
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+        }}
+      >
+        <Icon name="LogOut" size={18} />
+        Выйти
+      </button>
+
       {pwModal && (
         <div
           style={{
@@ -529,127 +621,264 @@ export default function AdminScreen({
         </div>
       )}
 
-      {orderModal && (
+      {orderModal && (() => {
+        const canCancel = orderModal.status !== "done" && orderModal.status !== "cancelled";
+        return (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 200,
+              padding: 24,
+            }}
+            onClick={() => setOrderModal(null)}
+          >
+            <div
+              className="taxi-card animate-fade-slide-up"
+              style={{ width: "calc(100% - 24px)", maxWidth: 380 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ ...headingStyle, fontSize: 16, marginBottom: 4 }}>Заказ #{orderModal.id}</div>
+              <div style={{ ...mutedText, marginBottom: 12 }}>{orderModal.createdAt}</div>
+
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
+                    <div style={{ width: 8, height: 8, background: "var(--taxi-green)", borderRadius: "50%" }} />
+                    <div style={{ width: 1, flex: 1, background: "var(--taxi-border)", margin: "3px 0" }} />
+                    <div style={{ width: 8, height: 8, background: "var(--taxi-yellow)", borderRadius: 2 }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, color: "#F0F2F5", marginBottom: 4 }}>{orderModal.from}</div>
+                    <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{orderModal.to}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>
+                  {orderModal.distanceKm} км
+                </span>
+                {orderModal.options.children && (
+                  <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(96,165,250,0.15)", borderRadius: 6, color: "#60A5FA" }}>
+                    Дети: {orderModal.options.childrenCount}
+                  </span>
+                )}
+                {orderModal.options.luggage && (
+                  <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(96,165,250,0.15)", borderRadius: 6, color: "#60A5FA" }}>
+                    Багаж
+                  </span>
+                )}
+                <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>
+                  {orderModal.passengerName}
+                </span>
+                <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>
+                  {orderModal.paymentMethod === "cash" ? "Наличные" : "Перевод"}
+                </span>
+                <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(255,204,0,0.15)", borderRadius: 6, color: "var(--taxi-yellow)", fontWeight: 700 }}>
+                  {orderModal.price} ₽
+                </span>
+              </div>
+
+              {orderModal.options.comment && (
+                <div style={{ padding: "8px 10px", background: "var(--taxi-surface)", borderRadius: 10, fontSize: 12, color: "var(--taxi-muted)", marginBottom: 12, fontStyle: "italic" }}>
+                  {orderModal.options.comment}
+                </div>
+              )}
+
+              <div style={{ marginBottom: 14 }}>
+                <div style={labelRow}>
+                  <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Скидка</span>
+                  <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>
+                    {discountSlider}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={15}
+                  step={1}
+                  value={discountSlider}
+                  onChange={(e) => setDiscountSlider(Number(e.target.value))}
+                  style={sliderStyle}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => handleApplyDiscount(orderModal)}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    background: "var(--taxi-surface)",
+                    border: "1px solid var(--taxi-border)",
+                    borderRadius: 12,
+                    color: "#F0F2F5",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    fontFamily: "Golos Text",
+                    fontWeight: 600,
+                  }}
+                >
+                  Применить скидку
+                </button>
+                <button
+                  onClick={() => handleAutoAssign(orderModal)}
+                  className="btn-yellow"
+                  style={{ flex: 1, padding: "10px", fontSize: 12, borderRadius: 12 }}
+                >
+                  Авто-назначение
+                </button>
+              </div>
+              {canCancel && (
+                <button
+                  onClick={() => {
+                    onCancelOrder(orderModal.id, "admin");
+                    setOrderModal(null);
+                  }}
+                  style={{
+                    width: "100%",
+                    marginTop: 8,
+                    padding: "10px",
+                    background: "rgba(239,68,68,0.1)",
+                    border: "1px solid rgba(239,68,68,0.3)",
+                    borderRadius: 12,
+                    color: "var(--taxi-red)",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    fontFamily: "Golos Text",
+                    fontWeight: 600,
+                  }}
+                >
+                  Отменить заказ
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {driverChatOpen && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.7)",
+            background: "var(--taxi-dark)",
+            zIndex: 300,
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 200,
-            padding: 24,
+            flexDirection: "column",
           }}
-          onClick={() => setOrderModal(null)}
         >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px var(--page-px)", borderBottom: "1px solid var(--taxi-border)" }}>
+            <button
+              onClick={() => setDriverChatOpen(false)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--taxi-yellow)", padding: 0 }}
+            >
+              <Icon name="ArrowLeft" size={22} />
+            </button>
+            <div style={{ ...headingStyle, fontSize: 16 }}>Чат водителей</div>
+          </div>
+
           <div
-            className="taxi-card animate-fade-slide-up"
-            style={{ width: "calc(100% - 24px)", maxWidth: 380 }}
-            onClick={(e) => e.stopPropagation()}
+            ref={driverChatRef}
+            style={{ flex: 1, overflowY: "auto", padding: "12px var(--page-px)", display: "flex", flexDirection: "column", gap: 8 }}
           >
-            <div style={{ ...headingStyle, fontSize: 16, marginBottom: 4 }}>Заказ #{orderModal.id}</div>
-            <div style={{ ...mutedText, marginBottom: 12 }}>{orderModal.createdAt}</div>
-
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
-                  <div style={{ width: 8, height: 8, background: "var(--taxi-green)", borderRadius: "50%" }} />
-                  <div style={{ width: 1, flex: 1, background: "var(--taxi-border)", margin: "3px 0" }} />
-                  <div style={{ width: 8, height: 8, background: "var(--taxi-yellow)", borderRadius: 2 }} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, color: "#F0F2F5", marginBottom: 4 }}>{orderModal.from}</div>
-                  <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{orderModal.to}</div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-              <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>
-                {orderModal.passengerName}
-              </span>
-              <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>
-                {orderModal.distanceKm} км
-              </span>
-              <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>
-                {orderModal.paymentMethod === "cash" ? "Наличные" : "Перевод"}
-              </span>
-              <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(255,204,0,0.15)", borderRadius: 6, color: "var(--taxi-yellow)", fontWeight: 700 }}>
-                {orderModal.price} ₽
-              </span>
-            </div>
-
-            {orderModal.options.comment && (
-              <div style={{ padding: "8px 10px", background: "var(--taxi-surface)", borderRadius: 10, fontSize: 12, color: "var(--taxi-muted)", marginBottom: 12, fontStyle: "italic" }}>
-                {orderModal.options.comment}
+            {driverChatLoading && driverChatMessages.length === 0 && (
+              <div style={{ textAlign: "center", padding: 30, color: "var(--taxi-muted)", fontSize: 13 }}>
+                Загрузка...
               </div>
             )}
-
-            <div style={{ marginBottom: 14 }}>
-              <div style={labelRow}>
-                <span style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Скидка</span>
-                <span style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 14, color: "var(--taxi-yellow)" }}>
-                  {discountSlider}%
-                </span>
+            {!driverChatLoading && driverChatMessages.length === 0 && (
+              <div style={{ textAlign: "center", padding: 30, color: "var(--taxi-muted)", fontSize: 13 }}>
+                Нет сообщений
               </div>
-              <input
-                type="range"
-                min={0}
-                max={15}
-                step={1}
-                value={discountSlider}
-                onChange={(e) => setDiscountSlider(Number(e.target.value))}
-                style={sliderStyle}
-              />
-            </div>
+            )}
+            {driverChatMessages.map((msg, i) => {
+              const isAdmin = msg.driverId === "admin_1";
+              return (
+                <div
+                  key={msg.id || i}
+                  style={{
+                    alignSelf: isAdmin ? "flex-end" : "flex-start",
+                    maxWidth: "80%",
+                  }}
+                >
+                  {!isAdmin && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontSize: 11, color: "#60A5FA", fontWeight: 600 }}>{msg.driverName}</span>
+                      <button
+                        onClick={() => handleBanDriver(msg.driverId)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                          color: "var(--taxi-red)",
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                        title="Заблокировать"
+                      >
+                        <Icon name="Ban" size={12} />
+                      </button>
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: isAdmin ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                      background: isAdmin ? "var(--taxi-yellow)" : "var(--taxi-surface)",
+                      color: isAdmin ? "var(--taxi-dark)" : "#F0F2F5",
+                      fontSize: 13,
+                      fontFamily: "Golos Text",
+                    }}
+                  >
+                    {msg.text}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "var(--taxi-muted)",
+                      marginTop: 2,
+                      textAlign: isAdmin ? "right" : "left",
+                    }}
+                  >
+                    {msg.time || ""}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => handleApplyDiscount(orderModal)}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  background: "var(--taxi-surface)",
-                  border: "1px solid var(--taxi-border)",
-                  borderRadius: 12,
-                  color: "#F0F2F5",
-                  fontSize: 12,
-                  cursor: "pointer",
-                  fontFamily: "Golos Text",
-                  fontWeight: 600,
-                }}
-              >
-                Применить скидку
-              </button>
-              <button
-                onClick={() => handleAutoAssign(orderModal)}
-                className="btn-yellow"
-                style={{ flex: 1, padding: "10px", fontSize: 12, borderRadius: 12 }}
-              >
-                Авто-назначение
-              </button>
-            </div>
+          <div style={{ padding: "10px var(--page-px)", borderTop: "1px solid var(--taxi-border)", display: "flex", gap: 8 }}>
+            <input
+              className="taxi-input"
+              placeholder="Написать сообщение..."
+              value={driverChatInput}
+              onChange={(e) => setDriverChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSendDriverChat()}
+              style={{ flex: 1, padding: "10px 14px", fontSize: 13 }}
+            />
             <button
-              onClick={() => {
-                onCancelOrder(orderModal.id, "admin");
-                setOrderModal(null);
-              }}
+              onClick={handleSendDriverChat}
               style={{
-                width: "100%",
-                marginTop: 8,
-                padding: "10px",
-                background: "rgba(239,68,68,0.1)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                borderRadius: 12,
-                color: "var(--taxi-red)",
-                fontSize: 12,
+                width: 44,
+                height: 44,
+                background: "var(--taxi-yellow)",
+                border: "none",
+                borderRadius: 14,
                 cursor: "pointer",
-                fontFamily: "Golos Text",
-                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
               }}
             >
-              Отменить заказ
+              <Icon name="Send" size={18} color="var(--taxi-dark)" />
             </button>
           </div>
         </div>
@@ -690,8 +919,10 @@ export default function AdminScreen({
             { label: "Отменено", value: cancelledOrders, color: "var(--taxi-red)" },
             { label: "Выручка", value: `${totalRevenue} ₽`, color: "var(--taxi-yellow)" },
           ].map((s) => (
-            <div key={s.label} className="taxi-card" style={{ textAlign: "center", padding: "12px 8px" }}>
-              <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: s.color }}>{s.value}</div>
+            <div key={s.label} className="taxi-card" style={{ textAlign: "center", padding: "12px 6px" }}>
+              <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: s.color }}>
+                {s.value}
+              </div>
               <div style={{ fontSize: 10, color: "var(--taxi-muted)", marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
@@ -882,36 +1113,12 @@ export default function AdminScreen({
       {addDriverOpen && (
         <div className="taxi-card animate-fade-slide-up" style={{ marginBottom: 14 }}>
           <div style={{ ...headingStyle, fontSize: 14, marginBottom: 12 }}>Новый водитель</div>
-          <input
-            className="taxi-input"
-            placeholder="Логин"
-            value={newLogin}
-            onChange={(e) => setNewLogin(e.target.value)}
-            style={{ marginBottom: 8 }}
-          />
-          <input
-            className="taxi-input"
-            placeholder="Пароль"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            style={{ marginBottom: 8 }}
-          />
-          <input
-            className="taxi-input"
-            placeholder="Имя"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            style={{ marginBottom: 8 }}
-          />
-          <input
-            className="taxi-input"
-            placeholder="Телефон"
-            value={newPhone}
-            onChange={(e) => setNewPhone(e.target.value)}
-            style={{ marginBottom: 10 }}
-          />
-          <button className="btn-yellow" onClick={handleAddDriver} style={{ padding: 12, fontSize: 14 }}>
-            Зарегистрировать
+          <input className="taxi-input" placeholder="Логин" value={newLogin} onChange={(e) => setNewLogin(e.target.value)} style={{ marginBottom: 8 }} />
+          <input className="taxi-input" placeholder="Пароль" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ marginBottom: 8 }} />
+          <input className="taxi-input" placeholder="Имя" value={newName} onChange={(e) => setNewName(e.target.value)} style={{ marginBottom: 8 }} />
+          <input className="taxi-input" placeholder="Телефон" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} style={{ marginBottom: 10 }} />
+          <button className="btn-yellow" onClick={handleAddDriver} style={{ padding: 10, fontSize: 13 }}>
+            Добавить водителя
           </button>
         </div>
       )}
@@ -1115,8 +1322,8 @@ export default function AdminScreen({
             onClick={(e) => e.stopPropagation()}
           >
             <Icon name="AlertTriangle" size={32} color="var(--taxi-red)" />
-            <div style={{ ...headingStyle, fontSize: 15, margin: "12px 0 8px" }}>Удалить водителя?</div>
-            <div style={{ ...mutedText, marginBottom: 16 }}>Это действие нельзя отменить</div>
+            <div style={{ ...headingStyle, fontSize: 15, margin: "12px 0 6px" }}>Удалить водителя?</div>
+            <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginBottom: 16 }}>Это действие нельзя отменить</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={() => setConfirmDeleteDriver(null)}
@@ -1567,7 +1774,7 @@ export default function AdminScreen({
         <button
           className="btn-yellow"
           onClick={handleSaveTariffs}
-          style={{ marginBottom: 16 }}
+          style={{ padding: 14, fontSize: 15, borderRadius: 14 }}
         >
           {tariffSaved ? "Сохранено!" : "Сохранить тарифы"}
         </button>
