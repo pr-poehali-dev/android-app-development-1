@@ -149,11 +149,17 @@ def handler(event, context):
 
         if act == 'add-driver':
             d = b
+            login = e(d.get('login', ''))
+            if not login:
+                return err(400, 'Логин обязателен')
+            cur.execute("SELECT id FROM drivers WHERE login='%s'" % login)
+            if cur.fetchone():
+                return err(400, 'Водитель с таким логином уже существует')
             uid = e(d['id'])
             cur.execute("INSERT INTO users(id,name,phone,role) VALUES('%s','%s','%s','driver') ON CONFLICT(id) DO NOTHING" % (uid, e(d['name']), e(d.get('phone', ''))))
             ci = d.get('carInfo', {})
             cur.execute("INSERT INTO drivers(id,user_id,name,phone,login,password,car_brand,car_model,car_plate,car_display,rating,status,auto_assign,subscription_days,free_work,has_ads,priority) VALUES('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s',%s,'%s',%s,%s,%s,%s,%s)" % (
-                uid, uid, e(d['name']), e(d.get('phone', '')), e(d['login']), e(d['password']),
+                uid, uid, e(d['name']), e(d.get('phone', '')), login, e(d.get('password', '')),
                 e(ci.get('brand', '')), e(ci.get('model', '')), e(ci.get('plateNumber', '')),
                 e(d.get('car', '')), d.get('rating', 5.0), e(d.get('status', 'active')),
                 str(d.get('autoAssign', False)).lower(), d.get('subscriptionDays', 0),

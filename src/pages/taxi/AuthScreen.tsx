@@ -16,6 +16,7 @@ type Screen = "welcome" | "passenger" | "driver" | "admin";
 export default function AuthScreen({ onAuth, drivers, settings }: Props) {
   const [screen, setScreen] = useState<Screen>("welcome");
   const [phone, setPhone] = useState("");
+  const [passengerName, setPassengerName] = useState("");
   const [step, setStep] = useState<"input" | "code">("input");
   const [code, setCode] = useState(["", "", "", ""]);
   const [driverLogin, setDriverLogin] = useState("");
@@ -41,7 +42,7 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
   const registerPassenger = async () => {
     if (passengerLoading) return;
     setPassengerLoading(true);
-    const u: User = { id: `u_${Date.now()}`, name: "Пассажир", phone: `+7${phone}`, role: "passenger" };
+    const u: User = { id: `u_${Date.now()}`, name: passengerName.trim() || "Пассажир", phone: `+7${phone}`, role: "passenger" };
     const res = await api.authPassenger({ id: u.id, name: u.name, phone: u.phone });
     setPassengerLoading(false);
     if (res && res.id && !res.error) {
@@ -111,7 +112,7 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
 
   const goBack = () => {
     setScreen("welcome");
-    setPhone(""); setStep("input"); setCode(["", "", "", ""]);
+    setPhone(""); setPassengerName(""); setStep("input"); setCode(["", "", "", ""]);
     setDriverLogin(""); setDriverPassword("");
     setAdminLogin(""); setAdminPassword("");
     setError("");
@@ -241,7 +242,8 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
         {screen === "passenger" && step === "input" && (
           <>
             <h2 style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 18, color: "#F0F2F5", marginBottom: 4 }}>Вход для пассажира</h2>
-            <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Введите номер телефона</p>
+            <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Введите ваше имя и номер телефона</p>
+            <input className="taxi-input" placeholder="Ваше имя" value={passengerName} onChange={(e) => setPassengerName(e.target.value)} style={{ marginBottom: 10 }} />
             <div style={{ position: "relative", marginBottom: 12 }}>
               <div style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "#F0F2F5", fontWeight: 600, fontSize: 15, zIndex: 1 }}>+7</div>
               <input className="taxi-input" style={{ paddingLeft: 44 }} placeholder="(999) 000-00-00" type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} maxLength={10} />

@@ -134,6 +134,7 @@ export default function App() {
     setDrivers((prev) => [...prev, d]);
     const res = await api.addDriver(d as unknown as Record<string, unknown>);
     if (!res || res.error) {
+      setDrivers((prev) => prev.filter((dr) => dr.id !== d.id));
       loadFromDb();
     }
   };

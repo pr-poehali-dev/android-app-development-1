@@ -342,8 +342,15 @@ export default function AdminScreen({
     setTimeout(() => setTariffSaved(false), 2000);
   };
 
+  const [addDriverError, setAddDriverError] = useState("");
   const handleAddDriver = () => {
     if (!newLogin.trim() || !newPassword.trim() || !newName.trim()) return;
+    const duplicate = drivers.find((d) => d.login === newLogin.trim());
+    if (duplicate) {
+      setAddDriverError("Водитель с таким логином уже существует");
+      setTimeout(() => setAddDriverError(""), 3000);
+      return;
+    }
     const driver: Driver = {
       id: `d_${Date.now()}`,
       name: newName.trim(),
@@ -1017,11 +1024,14 @@ export default function AdminScreen({
       {addDriverOpen && (
         <div className="taxi-card animate-fade-slide-up" style={{ marginBottom: 14 }}>
           <div style={{ ...headingStyle, fontSize: 14, marginBottom: 12 }}>Новый водитель</div>
+          {addDriverError && (
+            <div style={{ background: "rgba(239,68,68,0.15)", border: "1px solid var(--taxi-red)", borderRadius: 10, padding: "8px 12px", marginBottom: 10, fontSize: 13, color: "var(--taxi-red)", textAlign: "center" }}>{addDriverError}</div>
+          )}
           <input className="taxi-input" placeholder="Логин" value={newLogin} onChange={(e) => setNewLogin(e.target.value)} style={{ marginBottom: 8 }} />
           <input className="taxi-input" placeholder="Пароль" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ marginBottom: 8 }} />
           <input className="taxi-input" placeholder="Имя" value={newName} onChange={(e) => setNewName(e.target.value)} style={{ marginBottom: 8 }} />
           <input className="taxi-input" placeholder="Телефон" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} style={{ marginBottom: 10 }} />
-          <button className="btn-yellow" onClick={handleAddDriver} style={{ padding: 10, fontSize: 13 }}>
+          <button className="btn-yellow" onClick={handleAddDriver} disabled={!newLogin.trim() || !newPassword.trim() || !newName.trim()} style={{ padding: 10, fontSize: 13, opacity: !newLogin.trim() || !newPassword.trim() || !newName.trim() ? 0.5 : 1 }}>
             Добавить водителя
           </button>
         </div>
