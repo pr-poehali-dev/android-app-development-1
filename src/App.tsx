@@ -11,7 +11,7 @@ import {
   INITIAL_DRIVERS, INITIAL_ORDERS, INITIAL_SETTINGS, INITIAL_PASSENGERS,
 } from "./pages/taxi/types";
 import {
-  requestNotificationPermission, saveSession, loadSession, clearSession, sendPush,
+  requestNotificationPermission, saveSession, loadSession, clearSession, sendPush, playNotificationSound,
 } from "./pages/taxi/notifications";
 import api from "./pages/taxi/api";
 
@@ -223,6 +223,7 @@ export default function App() {
         return m;
       })
     );
+    api.markRead(userId, readerRole);
   };
 
   const currentDriver = user?.role === "driver" ? drivers.find((d) => d.id === user.id) ?? null : null;
@@ -235,14 +236,16 @@ export default function App() {
   const prevPassengerMsgCount = useRef(supportMessages.length);
   useEffect(() => {
     if (!user || user.role !== "passenger") return;
-    if (supportMessages.length > prevPassengerMsgCount.current) {
-      const newMsgs = supportMessages.slice(prevPassengerMsgCount.current);
-      const incoming = newMsgs.filter((m) => m.fromRole === "admin" && m.fromId === user.id);
-      if (incoming.length > 0) {
-        sendPush("Поддержка", incoming[incoming.length - 1].text.slice(0, 80));
+    const adminMsgsForMe = supportMessages.filter((m) => m.fromRole === "admin" && m.fromId === user.id);
+    if (adminMsgsForMe.length > prevPassengerMsgCount.current && prevPassengerMsgCount.current > 0) {
+      const newMsgs = adminMsgsForMe.slice(prevPassengerMsgCount.current);
+      const unread = newMsgs.filter((m) => !m.read);
+      if (unread.length > 0) {
+        playNotificationSound("message");
+        sendPush("Поддержка", unread[unread.length - 1].text.slice(0, 80));
       }
     }
-    prevPassengerMsgCount.current = supportMessages.length;
+    prevPassengerMsgCount.current = adminMsgsForMe.length;
   }, [supportMessages, user]);
 
   if (!loaded) return null;

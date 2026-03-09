@@ -214,27 +214,19 @@ export default function AdminScreen({
   }, [supportMessages]);
 
   useEffect(() => {
-    if (!driverChatOpen) return;
     let cancelled = false;
     const load = async () => {
-      setDriverChatLoading(true);
+      if (driverChatOpen) setDriverChatLoading(true);
       const res = await api.getDriverChat();
       if (!cancelled && res && Array.isArray(res.messages)) {
         setDriverChatMessages(res.messages);
       } else if (!cancelled && res && Array.isArray(res)) {
         setDriverChatMessages(res);
       }
-      setDriverChatLoading(false);
+      if (driverChatOpen) setDriverChatLoading(false);
     };
     load();
-    const interval = setInterval(async () => {
-      const res = await api.getDriverChat();
-      if (!cancelled && res && Array.isArray(res.messages)) {
-        setDriverChatMessages(res.messages);
-      } else if (!cancelled && res && Array.isArray(res)) {
-        setDriverChatMessages(res);
-      }
-    }, 5000);
+    const interval = setInterval(load, 5000);
     return () => {
       cancelled = true;
       clearInterval(interval);

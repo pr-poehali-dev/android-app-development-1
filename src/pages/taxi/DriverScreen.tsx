@@ -129,23 +129,24 @@ export default function DriverScreen({
 
   const supportUnread = mySupportMessages.filter((m) => m.fromRole === "admin" && !m.read).length;
 
+  const adminMsgsForMe = supportMessages.filter((m) => m.fromRole === "admin" && m.fromId === userId);
   useEffect(() => {
-    if (supportMessages.length > prevSupportCountRef.current) {
-      const newMsgs = supportMessages.slice(prevSupportCountRef.current);
-      const incoming = newMsgs.filter((m) => m.fromRole === "admin" && m.fromId === userId);
-      if (incoming.length > 0) {
+    if (adminMsgsForMe.length > prevSupportCountRef.current && prevSupportCountRef.current > 0) {
+      const newMsgs = adminMsgsForMe.slice(prevSupportCountRef.current);
+      const unread = newMsgs.filter((m) => !m.read);
+      if (unread.length > 0) {
         playNotificationSound("message");
-        sendPush("Поддержка", incoming[incoming.length - 1].text.slice(0, 80));
+        sendPush("Поддержка", unread[unread.length - 1].text.slice(0, 80));
       }
     }
-    prevSupportCountRef.current = supportMessages.length;
-  }, [supportMessages, userId]);
+    prevSupportCountRef.current = adminMsgsForMe.length;
+  }, [adminMsgsForMe]);
 
   useEffect(() => {
     if (supportOpen) {
       onMarkMessagesRead(userId, "driver");
     }
-  }, [supportOpen, userId, onMarkMessagesRead]);
+  }, [supportOpen, supportMessages, userId, onMarkMessagesRead]);
 
   useEffect(() => {
     if (!driver.autoAssign || isRestricted || myOrder || !carFilled || !canWork) return;

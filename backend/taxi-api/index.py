@@ -210,6 +210,37 @@ def handler(event, context):
                 e(m['id']), e(m['fromId']), e(m['fromName']), e(m['fromRole']), e(m['text']), e(m['time']), m['timestamp'], str(m.get('read', False)).lower()))
             return ok({'ok': True})
 
+        if act == 'mark-read':
+            uid = e(b.get('userId', ''))
+            reader = e(b.get('readerRole', ''))
+            if reader == 'admin':
+                cur.execute("UPDATE support_messages SET read=true WHERE from_id='%s' AND from_role!='admin' AND read=false" % uid)
+            elif reader in ('passenger', 'driver'):
+                cur.execute("UPDATE support_messages SET read=true WHERE from_id='%s' AND from_role='admin' AND read=false" % uid)
+            return ok({'ok': True})
+
+        if act == 'poll':
+            role = e(b.get('role', ''))
+            uid = e(b.get('userId', ''))
+            result = {}
+            cur.execute("SELECT COUNT(*) as c FROM support_messages WHERE read=false AND from_role!='admin'")
+            result['unreadSupport'] = int(cur.fetchone()['c'])
+            cur.execute("SELECT COUNT(*) as c FROM orders WHERE status='pending'")
+            result['pendingOrders'] = int(cur.fetchone()['c'])
+            cur.execute("SELECT MAX(msg_timestamp) as t FROM support_messages")
+            r = cur.fetchone()
+            result['lastSupportTs'] = int(r['t']) if r and r['t'] else 0
+            cur.execute("SELECT MAX(id) as t FROM driver_chat")
+            r = cur.fetchone()
+            result['lastDriverChatId'] = int(r['t']) if r and r['t'] else 0
+            if role == 'passenger' and uid:
+                cur.execute("SELECT COUNT(*) as c FROM support_messages WHERE from_id='%s' AND from_role='admin' AND read=false" % uid)
+                result['myUnread'] = int(cur.fetchone()['c'])
+            if role == 'driver' and uid:
+                cur.execute("SELECT COUNT(*) as c FROM support_messages WHERE from_id='%s' AND from_role='admin' AND read=false" % uid)
+                result['myUnread'] = int(cur.fetchone()['c'])
+            return ok(result)
+
         if act == 'get-driver-chat':
             cur.execute("SELECT id,driver_id,driver_name,text,created_at FROM driver_chat ORDER BY created_at DESC LIMIT 100")
             rows = cur.fetchall()

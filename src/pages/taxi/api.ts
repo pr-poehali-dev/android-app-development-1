@@ -61,6 +61,8 @@ export const api = {
   getRideChat: (orderId: string) => call("get-ride-chat", { orderId }),
   completeOrder: (orderId: string, driverId: string) => call("complete-order", { orderId, driverId }),
   updateDriverLocation: (driverId: string, lat: number, lng: number) => call("update-driver-location", { driverId, lat, lng }),
+  markRead: (userId: string, readerRole: string) => call("mark-read", { userId, readerRole }),
+  poll: (role: string, userId: string) => call("poll", { role, userId }),
   isConnected: () => !!API_URL,
 };
 
