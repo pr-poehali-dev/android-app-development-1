@@ -48,7 +48,7 @@ export default function App() {
   const idleCountRef = useRef(0);
 
   const fullSync = useCallback(async () => {
-    if (!api.isConnected()) return;
+    if (!api.isConnected()) return false;
     const data = await api.getState("admin");
     if (data && data.settings) {
       setSettings(data.settings);
@@ -66,7 +66,9 @@ export default function App() {
         setDrivers(serverDrivers);
       }
       setDbReady(true);
+      return true;
     }
+    return false;
   }, []);
 
   const smartPoll = useCallback(async () => {
@@ -91,7 +93,12 @@ export default function App() {
   useEffect(() => {
     requestNotificationPermission();
     const init = async () => {
-      await fullSync();
+      let synced = await fullSync();
+      if (!synced) {
+        await new Promise((r) => setTimeout(r, 2000));
+        synced = await fullSync();
+      }
+      if (!synced) setDbReady(true);
       const session = loadSession();
       if (session) {
         if (session.role === "admin") {
@@ -114,7 +121,7 @@ export default function App() {
   }, [fullSync]);
 
   useEffect(() => {
-    if (!dbReady || !user) return;
+    if (!user) return;
     let timeoutId: ReturnType<typeof setTimeout>;
     let cancelled = false;
     const tick = async () => {
@@ -139,10 +146,13 @@ export default function App() {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("blur", onBlur);
     };
-  }, [dbReady, user, smartPoll]);
+  }, [user, smartPoll]);
 
   const handleAuth = (u: User) => {
     setUser(u);
+    pollHashRef.current = "";
+    idleCountRef.current = 0;
+    pollIntervalRef.current = 1000;
     const dLogin = u.role === "driver" ? drivers.find((d) => d.id === u.id)?.login : undefined;
     saveSession({ userId: u.id, role: u.role, name: u.name, phone: u.phone, driverLogin: dLogin });
     if (u.role === "passenger") {
@@ -152,6 +162,7 @@ export default function App() {
         setPassengers((prev) => [...prev, { ...u, registeredAt: new Date().toISOString().slice(0, 10) }]);
       }
     }
+    fullSync();
   };
 
   const handleLogout = () => {
