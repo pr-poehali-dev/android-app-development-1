@@ -57,6 +57,9 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
   const [pickMode, setPickMode] = useState<"from" | "to" | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: string; action: () => void } | null>(null);
   const [fromCoords, setFromCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [toCoords, setToCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
 
   const showToast = (text: string, sub?: string) => {
     setToast({ text, sub });
@@ -133,27 +136,81 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     );
   };
 
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const geocodeAddress = useCallback(async (address: string): Promise<{ lat: number; lng: number } | null> => {
+    if (!address || address.length < 3 || !window.ymaps) return null;
+    try {
+      await new Promise<void>((resolve) => window.ymaps.ready(() => resolve()));
+      const res = await window.ymaps.geocode(address, { results: 1 });
+      const obj = res?.geoObjects?.get(0);
+      if (!obj) return null;
+      const coords = obj.geometry.getCoordinates();
+      return { lat: coords[0], lng: coords[1] };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const calcRoute = useCallback(async (fCoords: { lat: number; lng: number }, tCoords: { lat: number; lng: number }) => {
+    if (!window.ymaps) return;
+    setRouteLoading(true);
+    try {
+      await new Promise<void>((resolve) => window.ymaps.ready(() => resolve()));
+      const route = await window.ymaps.route(
+        [[fCoords.lat, fCoords.lng], [tCoords.lat, tCoords.lng]],
+        { mapStateAutoApply: false }
+      );
+      const dist = route.getLength() / 1000;
+      setRouteDistanceKm(Math.round(dist * 10) / 10);
+    } catch {
+      const R = 6371;
+      const dLat = ((tCoords.lat - fCoords.lat) * Math.PI) / 180;
+      const dLng = ((tCoords.lng - fCoords.lng) * Math.PI) / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos((fCoords.lat * Math.PI) / 180) * Math.cos((tCoords.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+      const straight = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      setRouteDistanceKm(Math.round(straight * 1.3 * 10) / 10);
+    }
+    setRouteLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (step !== "form" || tariff === "delivery") return;
+    if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+    if (!from || from.length < 3 || !to || to.length < 3) {
+      setRouteDistanceKm(null);
+      return;
+    }
+    geocodeTimerRef.current = setTimeout(async () => {
+      const fC = fromCoords || await geocodeAddress(from);
+      if (fC && !fromCoords) setFromCoords(fC);
+      const tC = await geocodeAddress(to);
+      if (tC) setToCoords(tC);
+      if (fC && tC) await calcRoute(fC, tC);
+    }, 600);
+    return () => { if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current); };
+  }, [from, to, tariff, step, fromCoords, geocodeAddress, calcRoute]);
+
   const activeOrder = orders.find((o) => o.id === activeOrderId);
   const assignedDriver = activeOrder?.driverId ? drivers.find(d => d.id === activeOrder.driverId) : null;
 
-  const estimateDistance = (): number => {
-    if (!from || !to) return 10;
-    const lenDiff = Math.abs(from.length - to.length);
-    const combined = from.length + to.length;
-    return Math.max(2, Math.min(50, Math.round(combined / 5 + lenDiff)));
-  };
-
-  const currentDistanceKm = estimateDistance();
+  const currentDistanceKm = routeDistanceKm ?? 10;
   const calcPrice = () => calcOrderPrice(currentDistanceKm, settings, tariff);
 
   const isDelivery = tariff === "delivery";
   const isCargo = tariff === "hourly";
 
-  const handleMapPick = (address: string) => {
-    if (pickMode === "from") setFrom(address);
-    else if (pickMode === "to") {
+  const handleMapPick = async (address: string) => {
+    if (pickMode === "from") {
+      setFrom(address);
+      const c = await geocodeAddress(address);
+      if (c) setFromCoords(c);
+    } else if (pickMode === "to") {
       if (isDelivery) setDeliveryAddress(address);
-      else setTo(address);
+      else {
+        setTo(address);
+        const c = await geocodeAddress(address);
+        if (c) setToCoords(c);
+      }
     }
     setPickMode(null);
   };
@@ -197,6 +254,8 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       scheduledAt: scheduledAtStr,
       fromLat: fromCoords?.lat ?? null,
       fromLng: fromCoords?.lng ?? null,
+      toLat: toCoords?.lat ?? null,
+      toLng: toCoords?.lng ?? null,
     };
     onOrderCreate(order);
     setActiveOrderId(order.id);
@@ -216,6 +275,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     setSelectedStar(0); setHoverStar(0);
     setChatOpen(false); setChatMessages([]);
     setPaymentMethod("cash"); setTips(0);
+    setRouteDistanceKm(null); setFromCoords(null); setToCoords(null);
     setScheduleType("now"); setScheduleDay(""); setScheduleMonth(""); setScheduleHour(""); setScheduleMin("");
     setPickMode(null);
   };
@@ -312,7 +372,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
               {confirmAction.type === "cancel" ? "Отменить заказ?" : confirmAction.type === "order" ? "Подтвердить заказ?" : "Подтвердить?"}
             </div>
             <div style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16, lineHeight: 1.5 }}>
-              {confirmAction.type === "cancel" ? "Вы уверены, что хотите отменить заказ?" : confirmAction.type === "order" ? `Маршрут: ${routeLabel}\nСтоимость: ≈ ${calcPrice()} ₽` : "Подтвердите действие"}
+              {confirmAction.type === "cancel" ? "Вы уверены, что хотите отменить заказ?" : confirmAction.type === "order" ? `Маршрут: ${routeLabel}${routeDistanceKm !== null ? ` (${routeDistanceKm} км)` : ""}\nСтоимость: ≈ ${calcPrice()} ₽` : "Подтвердите действие"}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button
@@ -757,10 +817,17 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "8px 0", borderTop: "1px solid var(--taxi-border)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, padding: "8px 0", borderTop: "1px solid var(--taxi-border)" }}>
             <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>Предварительная стоимость:</div>
-            <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "var(--taxi-yellow)" }}>≈ {calcPrice()} ₽</div>
+            <div style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "var(--taxi-yellow)" }}>
+              {routeLoading ? "..." : `≈ ${calcPrice()} ₽`}
+            </div>
           </div>
+          {routeDistanceKm !== null && !isDelivery && !isCargo && (
+            <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginBottom: 10, textAlign: "right" }}>
+              {routeDistanceKm} км по маршруту
+            </div>
+          )}
 
           <button className="btn-yellow" onClick={() => setConfirmAction({ type: "order", action: handleOrder })} disabled={!canOrder} style={{ opacity: canOrder ? 1 : 0.5 }}>
             {isDelivery ? "Заказать доставку" : isCargo ? "Заказать грузовое" : "Заказать такси"}
