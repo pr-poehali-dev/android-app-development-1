@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Translate Japanese to Russian",
+      "method": "POST",
+      "path": "/",
+      "body": {"text": "こんにちは"},
+      "expectedStatus": 200,
+      "expectedBody": {"translated": "string"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
