@@ -1,6 +1,7 @@
-"""Taxi API"""
+"""Taxi API — smart polling"""
 import json
 import os
+import hashlib
 import psycopg2
 import psycopg2.extras
 
@@ -222,23 +223,48 @@ def handler(event, context):
         if act == 'poll':
             role = e(b.get('role', ''))
             uid = e(b.get('userId', ''))
-            result = {}
-            cur.execute("SELECT COUNT(*) as c FROM support_messages WHERE read=false AND from_role!='admin'")
-            result['unreadSupport'] = int(cur.fetchone()['c'])
-            cur.execute("SELECT COUNT(*) as c FROM orders WHERE status='pending'")
-            result['pendingOrders'] = int(cur.fetchone()['c'])
+            client_hash = b.get('hash', '')
+            cur.execute("SELECT COUNT(*) as c, MAX(EXTRACT(EPOCH FROM created_at)::bigint) as last_ts FROM orders WHERE status IN ('pending','assigned','waiting','arrived','inprogress')")
+            orow = cur.fetchone()
             cur.execute("SELECT MAX(msg_timestamp) as t FROM support_messages")
-            r = cur.fetchone()
-            result['lastSupportTs'] = int(r['t']) if r and r['t'] else 0
+            srow = cur.fetchone()
             cur.execute("SELECT MAX(id) as t FROM driver_chat")
-            r = cur.fetchone()
-            result['lastDriverChatId'] = int(r['t']) if r and r['t'] else 0
+            dcrow = cur.fetchone()
+            cur.execute("SELECT MAX(EXTRACT(EPOCH FROM location_updated_at)::bigint) as t FROM drivers")
+            drow = cur.fetchone()
+            active_orders = int(orow['c'])
+            last_order_ts = int(orow['last_ts']) if orow['last_ts'] else 0
+            last_support_ts = int(srow['t']) if srow and srow['t'] else 0
+            last_dchat_id = int(dcrow['t']) if dcrow and dcrow['t'] else 0
+            last_driver_loc = int(drow['t']) if drow and drow['t'] else 0
+            raw = '%d:%d:%d:%d:%d' % (active_orders, last_order_ts, last_support_ts, last_dchat_id, last_driver_loc)
             if role == 'passenger' and uid:
                 cur.execute("SELECT COUNT(*) as c FROM support_messages WHERE from_id='%s' AND from_role='admin' AND read=false" % uid)
-                result['myUnread'] = int(cur.fetchone()['c'])
-            if role == 'driver' and uid:
+                my_unread = int(cur.fetchone()['c'])
+                cur.execute("SELECT status,driver_id,driver_name,driver_car,eta_minutes FROM orders WHERE passenger_id='%s' AND status NOT IN ('done','cancelled') ORDER BY created_at DESC LIMIT 1" % uid)
+                my_order = cur.fetchone()
+                raw += ':%d:%s' % (my_unread, json.dumps(dict(my_order) if my_order else {}, default=str))
+            elif role == 'driver' and uid:
                 cur.execute("SELECT COUNT(*) as c FROM support_messages WHERE from_id='%s' AND from_role='admin' AND read=false" % uid)
-                result['myUnread'] = int(cur.fetchone()['c'])
+                my_unread = int(cur.fetchone()['c'])
+                raw += ':%d' % my_unread
+            server_hash = hashlib.md5(raw.encode()).hexdigest()[:12]
+            result = {'hash': server_hash, 'changed': server_hash != client_hash}
+            if server_hash != client_hash:
+                result['activeOrders'] = active_orders
+                result['lastSupportTs'] = last_support_ts
+                result['lastDriverChatId'] = last_dchat_id
+                if role == 'passenger' and uid:
+                    result['myUnread'] = my_unread
+                    if my_order:
+                        result['myOrder'] = {'status': my_order['status'], 'driverId': my_order['driver_id'], 'driverName': my_order['driver_name'], 'driverCar': my_order['driver_car'], 'etaMinutes': my_order['eta_minutes']}
+                elif role == 'driver' and uid:
+                    result['myUnread'] = my_unread
+                    result['pendingOrders'] = int(orow['c'])
+                elif role == 'admin':
+                    cur.execute("SELECT COUNT(*) as c FROM support_messages WHERE read=false AND from_role!='admin'")
+                    result['unreadSupport'] = int(cur.fetchone()['c'])
+                    result['pendingOrders'] = active_orders
             return ok(result)
 
         if act == 'get-driver-chat':

@@ -43,7 +43,11 @@ export default function App() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const loadFromDb = useCallback(async () => {
+  const pollHashRef = useRef("");
+  const pollIntervalRef = useRef(3000);
+  const idleCountRef = useRef(0);
+
+  const fullSync = useCallback(async () => {
     if (!api.isConnected()) return;
     const data = await api.getState("admin");
     if (data && data.settings) {
@@ -65,10 +69,29 @@ export default function App() {
     }
   }, []);
 
+  const smartPoll = useCallback(async () => {
+    if (!api.isConnected() || !user) return;
+    const res = await api.poll(user.role, user.id, pollHashRef.current);
+    if (!res) return;
+    if (res.changed) {
+      pollHashRef.current = res.hash || "";
+      idleCountRef.current = 0;
+      pollIntervalRef.current = 2000;
+      await fullSync();
+    } else {
+      pollHashRef.current = res.hash || pollHashRef.current;
+      idleCountRef.current++;
+      if (idleCountRef.current < 5) pollIntervalRef.current = 3000;
+      else if (idleCountRef.current < 20) pollIntervalRef.current = 5000;
+      else if (idleCountRef.current < 60) pollIntervalRef.current = 10000;
+      else pollIntervalRef.current = 20000;
+    }
+  }, [user, fullSync]);
+
   useEffect(() => {
     requestNotificationPermission();
     const init = async () => {
-      await loadFromDb();
+      await fullSync();
       const session = loadSession();
       if (session) {
         if (session.role === "admin") {
@@ -88,13 +111,35 @@ export default function App() {
       setLoaded(true);
     };
     init();
-  }, [loadFromDb]);
+  }, [fullSync]);
 
   useEffect(() => {
-    if (!dbReady) return;
-    const interval = setInterval(loadFromDb, 5000);
-    return () => clearInterval(interval);
-  }, [dbReady, loadFromDb]);
+    if (!dbReady || !user) return;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+      await smartPoll();
+      if (!cancelled) timeoutId = setTimeout(tick, pollIntervalRef.current);
+    };
+    timeoutId = setTimeout(tick, pollIntervalRef.current);
+    const onFocus = () => {
+      idleCountRef.current = 0;
+      pollIntervalRef.current = 2000;
+      smartPoll();
+    };
+    const onBlur = () => {
+      pollIntervalRef.current = 15000;
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [dbReady, user, smartPoll]);
 
   const handleAuth = (u: User) => {
     setUser(u);
@@ -121,19 +166,25 @@ export default function App() {
     setTab("order");
   };
 
+  const triggerPoll = useCallback(() => {
+    pollHashRef.current = "";
+    idleCountRef.current = 0;
+    pollIntervalRef.current = 1000;
+  }, []);
+
   const handleOrderCreate = (order: Order) => {
     setOrders((prev) => [...prev, order]);
-    api.createOrder(order as unknown as Record<string, unknown>);
+    api.createOrder(order as unknown as Record<string, unknown>).then(triggerPoll);
   };
 
   const handleOrderCancel = (id: string, by?: "passenger" | "driver" | "admin") => {
     setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status: "cancelled" as const, cancelledBy: by || "passenger" } : o));
-    api.cancelOrder(id, by || "passenger");
+    api.cancelOrder(id, by || "passenger").then(triggerPoll);
   };
 
   const handleAcceptOrder = (orderId: string, driverId: string, driverName: string, eta?: number) => {
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "assigned" as const, driverId, driverName, etaMinutes: eta } : o));
-    api.acceptOrder({ orderId, driverId, driverName, eta });
+    api.acceptOrder({ orderId, driverId, driverName, eta }).then(triggerPoll);
   };
 
   const handleToggleAutoAssign = (driverId: string) => {
@@ -195,7 +246,7 @@ export default function App() {
 
   const handleUpdateOrderStatus = (orderId: string, status: Order["status"]) => {
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o));
-    api.updateOrder(orderId, status);
+    api.updateOrder(orderId, status).then(triggerPoll);
   };
 
   const handleUpdateOrder = (orderId: string, changes: Partial<Order>) =>
@@ -208,7 +259,7 @@ export default function App() {
 
   const handleSendSupport = (msg: SupportMessage) => {
     setSupportMessages((prev) => [...prev, msg]);
-    api.sendSupport(msg as unknown as Record<string, unknown>);
+    api.sendSupport(msg as unknown as Record<string, unknown>).then(triggerPoll);
   };
 
   const handleMarkMessagesRead = (userId: string, readerRole: "admin" | "passenger" | "driver") => {

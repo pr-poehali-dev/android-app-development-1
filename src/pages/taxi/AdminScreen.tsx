@@ -213,23 +213,31 @@ export default function AdminScreen({
     return groups;
   }, [supportMessages]);
 
+  const driverChatHashRef = useRef(0);
   useEffect(() => {
     let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
     const load = async () => {
+      if (cancelled) return;
       if (driverChatOpen) setDriverChatLoading(true);
-      const res = await api.getDriverChat();
-      if (!cancelled && res && Array.isArray(res.messages)) {
-        setDriverChatMessages(res.messages);
-      } else if (!cancelled && res && Array.isArray(res)) {
-        setDriverChatMessages(res);
+      const poll = await api.poll("admin", "admin_1");
+      const newId = poll?.lastDriverChatId || 0;
+      if (newId !== driverChatHashRef.current || driverChatHashRef.current === 0) {
+        driverChatHashRef.current = newId;
+        const res = await api.getDriverChat();
+        if (!cancelled && res && Array.isArray(res.messages)) {
+          setDriverChatMessages(res.messages);
+        } else if (!cancelled && res && Array.isArray(res)) {
+          setDriverChatMessages(res);
+        }
       }
       if (driverChatOpen) setDriverChatLoading(false);
+      if (!cancelled) timeoutId = setTimeout(load, driverChatOpen ? 4000 : 15000);
     };
     load();
-    const interval = setInterval(load, 5000);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      clearTimeout(timeoutId);
     };
   }, [driverChatOpen]);
 

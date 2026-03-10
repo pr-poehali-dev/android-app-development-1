@@ -182,17 +182,29 @@ export default function DriverScreen({
     }
   }, [orders, driver.autoAssign, driver.lat, driver.lng, isRestricted, myOrder, carFilled, autoAssignOffer, canWork, settings.autoAssignRadiusKm]);
 
+  const driverChatHashRef = useRef(0);
   useEffect(() => {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
     const loadChat = async () => {
-      const res = await api.getDriverChat();
-      if (res?.messages) {
-        setDriverChatMessages(res.messages);
+      if (cancelled) return;
+      const poll = await api.poll("driver", driver.id);
+      const newId = poll?.lastDriverChatId || 0;
+      if (newId !== driverChatHashRef.current || driverChatHashRef.current === 0) {
+        driverChatHashRef.current = newId;
+        const res = await api.getDriverChat();
+        if (!cancelled && res?.messages) {
+          setDriverChatMessages(res.messages);
+        }
       }
+      if (!cancelled) timeoutId = setTimeout(loadChat, tab === "chat" ? 4000 : 15000);
     };
     loadChat();
-    const interval = setInterval(loadChat, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [driver.id, tab]);
 
   useEffect(() => {
     if (driverChatMessages.length > prevDriverChatCountRef.current && prevDriverChatCountRef.current > 0) {
