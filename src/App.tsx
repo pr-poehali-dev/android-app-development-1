@@ -248,11 +248,15 @@ export default function App() {
     api.rateDriver(driverId, rating);
   };
 
-  const handleDeleteDriver = (id: string) => setDrivers((prev) => prev.filter((d) => d.id !== id));
+  const handleDeleteDriver = (id: string) => {
+    setDrivers((prev) => prev.filter((d) => d.id !== id));
+    api.deleteDriver(id).then(triggerPoll);
+  };
 
   const handleDeleteUser = (id: string) => {
     setPassengers((prev) => prev.filter((p) => p.id !== id));
     setDrivers((prev) => prev.filter((d) => d.id !== id));
+    api.deleteUser(id).then(triggerPoll);
   };
 
   const handleUpdateOrderStatus = (orderId: string, status: Order["status"]) => {

@@ -327,6 +327,25 @@ def handler(event, context):
                 cur.execute("UPDATE drivers SET trips_count=trips_count+1,total_earnings=total_earnings+%s,total_km=total_km+%s WHERE id='%s'" % (earn, km, did))
             return ok({'ok': True})
 
+        if act == 'delete-driver':
+            did = e(b.get('id', ''))
+            if not did:
+                return err(400, 'id is required')
+            cur.execute("DELETE FROM driver_chat WHERE driver_id='%s'" % did)
+            cur.execute("DELETE FROM drivers WHERE id='%s'" % did)
+            cur.execute("DELETE FROM users WHERE id='%s' AND role='driver'" % did)
+            return ok({'ok': True})
+
+        if act == 'delete-user':
+            uid = e(b.get('id', ''))
+            if not uid:
+                return err(400, 'id is required')
+            cur.execute("DELETE FROM support_messages WHERE from_id='%s'" % uid)
+            cur.execute("DELETE FROM driver_chat WHERE driver_id='%s'" % uid)
+            cur.execute("DELETE FROM drivers WHERE id='%s'" % uid)
+            cur.execute("DELETE FROM users WHERE id='%s'" % uid)
+            return ok({'ok': True})
+
         if act == 'translate':
             text = b.get('text', '').strip()
             if not text:

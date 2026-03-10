@@ -71,7 +71,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     if (restoredRef.current) return;
     restoredRef.current = true;
     const active = orders.find(
-      (o) => o.passengerId === user.id && !["done", "cancelled"].includes(o.status)
+      (o) => o.passengerId === user.id && !["done", "cancelled"].includes(o.status) && !(o.status === "pending" && o.scheduledAt)
     );
     if (active) {
       setActiveOrderId(active.id);
@@ -258,8 +258,13 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       toLng: toCoords?.lng ?? null,
     };
     onOrderCreate(order);
-    setActiveOrderId(order.id);
-    setStep("searching");
+    if (scheduledAtStr) {
+      showToast(`Заказ на ${scheduledAtStr} оформлен`, "Водитель будет назначен ближе к времени");
+      resetOrder();
+    } else {
+      setActiveOrderId(order.id);
+      setStep("searching");
+    }
   };
 
   const handleCancel = () => {
@@ -288,7 +293,21 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
 
   const prevStatusRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!activeOrderId) return;
+    if (!activeOrderId) {
+      const justAssigned = orders.find(
+        (o) => o.passengerId === user.id && o.scheduledAt && o.status === "assigned"
+      );
+      if (justAssigned) {
+        setActiveOrderId(justAssigned.id);
+        setFrom(justAssigned.from || "");
+        setTo(justAssigned.to || "");
+        setTariff(justAssigned.tariff);
+        setStep("found");
+        playNotificationSound("arrive");
+        sendPush("Taxi", "Водитель назначен на ваш предварительный заказ!");
+      }
+      return;
+    }
     const order = orders.find((o) => o.id === activeOrderId);
     if (!order) return;
     const prevStatus = prevStatusRef.current;
@@ -305,7 +324,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     } else if (order.status === "cancelled") {
       resetOrder();
     }
-  }, [orders, activeOrderId, step]);
+  }, [orders, activeOrderId, step, user.id]);
 
   const prevChatCountRef = useRef(0);
   const loadRideChat = useCallback(async () => {
@@ -667,6 +686,19 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
 
       {step === "form" && (
         <div style={{ background: "var(--taxi-card)", borderRadius: "20px 20px 0 0", borderTop: "1px solid var(--taxi-border)", padding: "14px var(--page-px)", paddingBottom: 80, overflowY: "auto", maxHeight: "calc(100% - 200px)" }}>
+          {orders.filter((o) => o.passengerId === user.id && o.status === "pending" && o.scheduledAt).length > 0 && (
+            <div style={{ background: "rgba(255,204,0,0.08)", border: "1px solid rgba(255,204,0,0.2)", borderRadius: 12, padding: "8px 12px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>📅</span>
+              <div style={{ flex: 1 }}>
+                {orders.filter((o) => o.passengerId === user.id && o.status === "pending" && o.scheduledAt).map((o) => (
+                  <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "var(--taxi-yellow)", padding: "2px 0" }}>
+                    <span>{o.from} → {o.to} на {o.scheduledAt}</span>
+                    <button onClick={() => onOrderCancel(o.id)} style={{ background: "none", border: "none", color: "var(--taxi-red)", fontSize: 11, cursor: "pointer", padding: "2px 6px" }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
             {TARIFFS.map((t) => (
               <button key={t.id} onClick={() => setTariff(t.id)}
