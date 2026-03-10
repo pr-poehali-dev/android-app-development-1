@@ -2,6 +2,8 @@
 import json
 import os
 import hashlib
+import urllib.request
+import urllib.parse
 import psycopg2
 import psycopg2.extras
 
@@ -324,6 +326,18 @@ def handler(event, context):
                 earn = float(o['price'])
                 cur.execute("UPDATE drivers SET trips_count=trips_count+1,total_earnings=total_earnings+%s,total_km=total_km+%s WHERE id='%s'" % (earn, km, did))
             return ok({'ok': True})
+
+        if act == 'translate':
+            text = b.get('text', '').strip()
+            if not text:
+                return err(400, 'text is required')
+            params = urllib.parse.urlencode({'client': 'gtx', 'sl': 'ja', 'tl': 'ru', 'dt': 't', 'q': text})
+            url = 'https://translate.googleapis.com/translate_a/single?' + params
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+            translated = ''.join(part[0] for part in data[0] if part[0])
+            return ok({'translated': translated})
 
         return err(404, 'Unknown action')
     except Exception as ex:

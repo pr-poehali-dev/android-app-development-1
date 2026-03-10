@@ -14,13 +14,12 @@ type Props = {
 };
 
 async function translateJapanese(text: string): Promise<string> {
-  const res = await fetch("https://functions.poehali.dev/a9a9dc11-03fd-40c6-9dbc-666f0fe668c6", {
+  const res = await fetch("https://functions.poehali.dev/ca485884-1d2e-41f3-bc5f-ac87ec821ae5?action=translate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
   });
   let data = await res.json();
-  // платформа может обернуть body в строку — парсим повторно
   if (typeof data === "string") data = JSON.parse(data);
   return data.translated ?? "";
 }
