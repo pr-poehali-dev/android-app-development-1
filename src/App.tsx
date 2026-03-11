@@ -194,7 +194,10 @@ export default function App() {
   };
 
   const handleAcceptOrder = (orderId: string, driverId: string, driverName: string, eta?: number) => {
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "assigned" as const, driverId, driverName, etaMinutes: eta } : o));
+    const dr = drivers.find(d => d.id === driverId);
+    const driverPhone = dr?.phone || "";
+    const driverCar = dr?.car || "";
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "assigned" as const, driverId, driverName, driverPhone, driverCar, etaMinutes: eta } : o));
     api.acceptOrder({ orderId, driverId, driverName, eta }).then(triggerPoll);
   };
 

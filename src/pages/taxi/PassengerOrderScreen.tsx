@@ -220,6 +220,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
 
   const activeOrder = orders.find((o) => o.id === activeOrderId);
   const assignedDriver = activeOrder?.driverId ? drivers.find(d => d.id === activeOrder.driverId) : null;
+  const driverPhone = assignedDriver?.phone || activeOrder?.driverPhone || "";
 
   const currentDistanceKm = routeDistanceKm ?? 10;
   const calcPrice = () => calcOrderPrice(currentDistanceKm, settings, tariff);
@@ -287,7 +288,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     };
     onOrderCreate(order);
     if (scheduledAtStr) {
-      showToast(`Заказ на ${scheduledAtStr} оформлен`, "Водитель будет назначен ближе к времени");
+      showToast(`Заказ на ${scheduledAtStr} оформлен`, "Заказ доступен водителям");
       resetOrder();
     } else {
       setActiveOrderId(order.id);
@@ -332,7 +333,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
         setTariff(justAssigned.tariff);
         setStep("found");
         playNotificationSound("arrive");
-        sendPush("Taxi", "Водитель назначен на ваш предварительный заказ!");
+        sendPush("Антипиха", "Водитель назначен на ваш предварительный заказ!");
       }
       return;
     }
@@ -598,8 +599,8 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
               )}
 
               <div style={{ display: "flex", gap: 8 }}>
-                {assignedDriver?.phone && (
-                  <a href={`tel:${assignedDriver.phone.replace(/\s/g, "")}`} style={{ width: 48, height: 48, flexShrink: 0, background: "var(--taxi-green)", border: "none", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+                {driverPhone && (
+                  <a href={`tel:${driverPhone.replace(/\s/g, "")}`} style={{ width: 48, height: 48, flexShrink: 0, background: "var(--taxi-green)", border: "none", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
                     <Icon name="Phone" size={20} color="#fff" />
                   </a>
                 )}
@@ -662,8 +663,8 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
               </div>
 
               <div style={{ display: "flex", gap: 8 }}>
-                {assignedDriver?.phone && (
-                  <a href={`tel:${assignedDriver.phone.replace(/\s/g, "")}`} style={{ width: 48, height: 48, flexShrink: 0, background: "var(--taxi-green)", border: "none", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+                {driverPhone && (
+                  <a href={`tel:${driverPhone.replace(/\s/g, "")}`} style={{ width: 48, height: 48, flexShrink: 0, background: "var(--taxi-green)", border: "none", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
                     <Icon name="Phone" size={20} color="#fff" />
                   </a>
                 )}
@@ -699,8 +700,8 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                {assignedDriver?.phone && (
-                  <a href={`tel:${assignedDriver.phone.replace(/\s/g, "")}`} style={{ width: 44, height: 44, flexShrink: 0, background: "var(--taxi-green)", border: "none", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+                {driverPhone && (
+                  <a href={`tel:${driverPhone.replace(/\s/g, "")}`} style={{ width: 44, height: 44, flexShrink: 0, background: "var(--taxi-green)", border: "none", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
                     <Icon name="Phone" size={18} color="#fff" />
                   </a>
                 )}

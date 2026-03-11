@@ -102,7 +102,11 @@ export default function DriverScreen({
   }, [driver.id]);
 
   const myOrder = orders.find(
-    (o) => o.driverId === driver.id && !["done", "cancelled"].includes(o.status)
+    (o) => o.driverId === driver.id && !["done", "cancelled"].includes(o.status) && !(o.scheduledAt && o.status === "assigned")
+  );
+
+  const myScheduledOrders = orders.filter(
+    (o) => o.driverId === driver.id && o.scheduledAt && o.status === "assigned"
   );
 
   const driverRestoredRef = useRef(false);
@@ -117,8 +121,12 @@ export default function DriverScreen({
 
   const now = Date.now();
   const freeOrders = orders
-    .filter((o) => o.status === "pending" && o.freeAt && now - o.freeAt >= settings.freeOrderTimeoutMs)
-    .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+    .filter((o) => o.status === "pending" && o.freeAt && (o.scheduledAt || now - o.freeAt >= settings.freeOrderTimeoutMs))
+    .sort((a, b) => {
+      if (a.scheduledAt && !b.scheduledAt) return -1;
+      if (!a.scheduledAt && b.scheduledAt) return 1;
+      return (a.distanceKm ?? 0) - (b.distanceKm ?? 0);
+    });
 
   const isRestricted = driver.status === "restricted";
   const carFilled = driver.carInfo.brand && driver.carInfo.model && driver.carInfo.plateNumber;
@@ -151,7 +159,7 @@ export default function DriverScreen({
   useEffect(() => {
     if (!driver.autoAssign || isRestricted || myOrder || !carFilled || !canWork) return;
     const pendingOrders = orders.filter(
-      (o) => o.status === "pending" && !o.driverId && !declinedOrdersRef.current.has(o.id)
+      (o) => o.status === "pending" && !o.driverId && !o.scheduledAt && !declinedOrdersRef.current.has(o.id)
     );
     if (pendingOrders.length > 0 && !autoAssignOffer) {
       const toRad = (d: number) => (d * Math.PI) / 180;
@@ -911,6 +919,46 @@ export default function DriverScreen({
             <div style={{ padding: "var(--page-pt) var(--page-px) 0" }}>
               <h2 style={{ fontFamily: "Montserrat", fontWeight: 800, fontSize: 20, color: "#F0F2F5", marginBottom: 4 }}>История заказов</h2>
               <p style={{ fontSize: 13, color: "var(--taxi-muted)", marginBottom: 16 }}>Все отработанные заказы</p>
+
+              {myScheduledOrders.length > 0 && (
+                <>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--taxi-yellow)", marginBottom: 10 }}>📅 Предварительные заказы ({myScheduledOrders.length})</div>
+                  {myScheduledOrders.map((order, idx) => (
+                    <div key={order.id} className="taxi-card animate-fade-slide-up" style={{ marginBottom: 10, border: "1px solid rgba(255,204,0,0.25)", animationDelay: `${idx * 0.07}s` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, padding: "6px 8px", background: "rgba(255,204,0,0.12)", borderRadius: 8 }}>
+                        <span style={{ fontSize: 14 }}>📅</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--taxi-yellow)" }}>Заказ на {order.scheduledAt}</span>
+                      </div>
+                      {order.tariff === "delivery" ? (
+                        <div style={{ marginBottom: 8 }}>
+                          <div style={{ fontSize: 13, color: "#F0F2F5" }}>Доставка</div>
+                          <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 2 }}>{order.to}</div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
+                            <div style={{ width: 7, height: 7, background: "var(--taxi-green)", borderRadius: "50%" }} />
+                            <div style={{ width: 1, flex: 1, background: "var(--taxi-border)", margin: "3px 0" }} />
+                            <div style={{ width: 7, height: 7, background: "var(--taxi-yellow)", borderRadius: 2 }} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 13, color: "#F0F2F5", marginBottom: 4 }}>{order.from}</div>
+                            <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{order.to}</div>
+                          </div>
+                        </div>
+                      )}
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{TARIFF_LABELS[order.tariff]}</span>
+                        <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{order.passengerName}</span>
+                        <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{order.createdAt}</span>
+                        {order.price && <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-yellow)", fontWeight: 600 }}>{order.price} ₽</span>}
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ height: 1, background: "var(--taxi-border)", margin: "16px 0" }} />
+                </>
+              )}
+
               <DriverHistory orders={orders} driverId={driver.id} />
             </div>
           )}
@@ -1090,6 +1138,16 @@ function FreeOrderCard({ order, idx, onAccept, disabled, disabledReason }: { ord
         )}
       </div>
 
+      {order.scheduledAt && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", background: "rgba(255,204,0,0.12)", borderRadius: 10, marginBottom: 10, border: "1px solid rgba(255,204,0,0.25)" }}>
+          <span style={{ fontSize: 16 }}>📅</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--taxi-yellow)" }}>Предварительный на {order.scheduledAt}</div>
+            <div style={{ fontSize: 11, color: "var(--taxi-muted)", marginTop: 2 }}>Создан: {order.createdAt}</div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
         <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{TARIFF_LABELS[order.tariff]}</span>
         {order.distanceKm > 0 && (
@@ -1097,6 +1155,9 @@ function FreeOrderCard({ order, idx, onAccept, disabled, disabledReason }: { ord
         )}
         <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{order.passengerName}</span>
         <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{PAYMENT_LABELS[order.paymentMethod]}</span>
+        {!order.scheduledAt && order.createdAt && (
+          <span style={{ fontSize: 11, padding: "3px 8px", background: "var(--taxi-surface)", borderRadius: 6, color: "var(--taxi-muted)" }}>{order.createdAt}</span>
+        )}
         {order.tips > 0 && (
           <span style={{ fontSize: 11, padding: "3px 8px", background: "rgba(34,197,94,0.15)", borderRadius: 6, color: "var(--taxi-green)", fontWeight: 600 }}>+{order.tips} ₽ чай</span>
         )}

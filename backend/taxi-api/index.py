@@ -128,11 +128,12 @@ def handler(event, context):
 
         if act == 'accept-order':
             did = e(b.get('driverId'))
-            cur.execute("SELECT car_display FROM drivers WHERE id='%s'" % did)
+            cur.execute("SELECT car_display,phone FROM drivers WHERE id='%s'" % did)
             dr = cur.fetchone()
             dcar = dr['car_display'] if dr else ''
-            cur.execute("UPDATE orders SET status='assigned',driver_id='%s',driver_name='%s',driver_car='%s',eta_minutes=%s WHERE id='%s'" % (
-                did, e(b.get('driverName')), e(dcar), b.get('eta', 5), e(b.get('orderId'))))
+            dphone = dr['phone'] if dr else ''
+            cur.execute("UPDATE orders SET status='assigned',driver_id='%s',driver_name='%s',driver_phone='%s',driver_car='%s',eta_minutes=%s WHERE id='%s'" % (
+                did, e(b.get('driverName')), e(dphone), e(dcar), b.get('eta', 5), e(b.get('orderId'))))
             return ok({'ok': True})
 
         if act == 'update-settings':
@@ -413,7 +414,7 @@ def fmt_order(r):
             'status': r['status'], 'paymentMethod': r['payment_method'],
             'tips': float(r['tips']), 'discount': float(r['discount']), 'distanceKm': float(r['distance_km']),
             'price': float(r['price']) if r['price'] else 0,
-            'driverId': r.get('driver_id'), 'driverName': r.get('driver_name'), 'driverCar': r.get('driver_car'),
+            'driverId': r.get('driver_id'), 'driverName': r.get('driver_name'), 'driverPhone': r.get('driver_phone', ''), 'driverCar': r.get('driver_car'),
             'etaMinutes': r.get('eta_minutes'), 'freeAt': int(fa.timestamp() * 1000) if fa else None,
             'acceptedVia': r.get('accepted_via'), 'cancelledBy': r.get('cancelled_by'),
             'scheduledAt': r.get('scheduled_at'), 'waitingMinutes': int(r.get('waiting_minutes', 0)),

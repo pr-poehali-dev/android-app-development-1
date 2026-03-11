@@ -38,6 +38,7 @@ export interface Order {
   distanceKm: number;
   driverId?: string;
   driverName?: string;
+  driverPhone?: string;
   driverCar?: string;
   price?: number;
   createdAt: string;
@@ -126,7 +127,7 @@ export interface PassengerStats {
   cancelledOrders: number;
 }
 
-export const LOGO_URL = "https://cdn.poehali.dev/projects/e03e7d24-4919-4d6e-81b9-d7fc9a11aa44/files/198b7f25-ea21-46a6-83bd-f57a699ec42a.jpg";
+export const LOGO_URL = "https://cdn.poehali.dev/projects/e03e7d24-4919-4d6e-81b9-d7fc9a11aa44/files/c76d2db8-ec14-440d-87ff-90bd26868e73.jpg";
 
 export const INITIAL_DRIVERS: Driver[] = [];
 

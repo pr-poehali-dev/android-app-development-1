@@ -13,6 +13,7 @@ interface Props {
 }
 
 export default function HistoryScreen({ orders, onRepeat }: Props) {
+  const scheduledPending = orders.filter((o) => o.scheduledAt && (o.status === "pending" || o.status === "assigned"));
   const completed = orders.filter((o) => o.status === "done" || o.status === "cancelled");
 
   return (
@@ -25,7 +26,69 @@ export default function HistoryScreen({ orders, onRepeat }: Props) {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "10px var(--page-px)", paddingBottom: 80 }}>
-        {completed.length === 0 ? (
+        {scheduledPending.length > 0 && (
+          <>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--taxi-yellow)", marginBottom: 10 }}>📅 Предварительные заказы</div>
+            {scheduledPending.map((trip, idx) => (
+              <div
+                key={trip.id}
+                className="taxi-card animate-fade-slide-up"
+                style={{ marginBottom: 10, border: "1px solid rgba(255,204,0,0.25)", animationDelay: `${idx * 0.07}s` }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
+                        <div style={{ width: 8, height: 8, background: "var(--taxi-green)", borderRadius: "50%", flexShrink: 0 }} />
+                        <div style={{ width: 1, flex: 1, background: "var(--taxi-border)", margin: "3px 0" }} />
+                        <div style={{ width: 8, height: 8, background: "var(--taxi-yellow)", borderRadius: 2, flexShrink: 0 }} />
+                      </div>
+                      <div>
+                        {trip.tariff === "delivery" ? (
+                          <>
+                            <div style={{ fontSize: 13, color: "#F0F2F5", marginBottom: 6 }}>Доставка</div>
+                            <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{trip.to}</div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ fontSize: 13, color: "#F0F2F5", marginBottom: 6 }}>{trip.from}</div>
+                            <div style={{ fontSize: 13, color: "var(--taxi-muted)" }}>{trip.to}</div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 11, color: "var(--taxi-yellow)", background: "rgba(255,204,0,0.12)", padding: "3px 8px", borderRadius: 6, fontWeight: 600 }}>
+                        📅 {trip.scheduledAt}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--taxi-muted)", background: "var(--taxi-surface)", padding: "3px 8px", borderRadius: 6 }}>
+                        Создан: {trip.createdAt}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--taxi-muted)", background: "var(--taxi-surface)", padding: "3px 8px", borderRadius: 6 }}>{TARIFF_LABEL[trip.tariff] ?? trip.tariff}</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", marginLeft: 12, flexShrink: 0 }}>
+                    {trip.status === "assigned" ? (
+                      <div style={{ fontFamily: "Montserrat", fontWeight: 600, fontSize: 12, color: "var(--taxi-green)", marginBottom: 4 }}>
+                        Водитель найден
+                      </div>
+                    ) : (
+                      <div style={{ fontFamily: "Montserrat", fontWeight: 600, fontSize: 12, color: "var(--taxi-yellow)", marginBottom: 4 }}>
+                        Ожидает
+                      </div>
+                    )}
+                    {trip.driverName && (
+                      <div style={{ fontSize: 11, color: "var(--taxi-muted)" }}>{trip.driverName}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div style={{ height: 1, background: "var(--taxi-border)", margin: "12px 0 16px" }} />
+          </>
+        )}
+
+        {completed.length === 0 && scheduledPending.length === 0 ? (
           <div style={{ textAlign: "center", marginTop: 60 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
             <div style={{ fontFamily: "Montserrat", fontWeight: 700, fontSize: 16, color: "#F0F2F5", marginBottom: 6 }}>Пока нет поездок</div>
