@@ -123,11 +123,11 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       setEtaMinutes((prev) => prev || Math.floor(Math.random() * 6) + 3);
       showToast("Водитель найден!", "Едет к вам");
       playNotificationSound("arrive");
-      sendPush("Taxi", "Водитель найден и едет к вам!");
+      sendPush("Антипиха", "Водитель найден и едет к вам!");
     }
     if (step === "arrived") {
       playNotificationSound("arrive");
-      sendPush("Taxi", "Водитель на месте!");
+      sendPush("Антипиха", "Водитель на месте!");
     }
   }, [step]);
 

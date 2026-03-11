@@ -177,7 +177,7 @@ export default function DriverScreen({
       if (nearest) {
         setAutoAssignOffer(nearest.order);
         playLoopingOrderSound();
-        sendPush("Taxi", "Новый заказ!");
+        sendPush("Антипиха", "Новый заказ!");
       }
     }
   }, [orders, driver.autoAssign, driver.lat, driver.lng, isRestricted, myOrder, carFilled, autoAssignOffer, canWork, settings.autoAssignRadiusKm]);

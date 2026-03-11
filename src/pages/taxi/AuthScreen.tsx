@@ -136,7 +136,7 @@ export default function AuthScreen({ onAuth, drivers, settings }: Props) {
           <div className="map-road" style={{ height: 2, width: "100%", top: "70%", left: 0, opacity: 0.3 }} />
           <div className="flex flex-col items-center gap-3 animate-fade-slide-up" style={{ zIndex: 1 }}>
             <div className="animate-pulse-glow" style={{ width: "var(--logo-size)", height: "var(--logo-size)", borderRadius: "var(--logo-radius)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <img src={LOGO_URL} alt="Taxi" style={{ width: "var(--logo-size)", height: "var(--logo-size)", objectFit: "cover", borderRadius: "var(--logo-radius)" }} />
+              <img src={LOGO_URL} alt="Антипиха" style={{ width: "var(--logo-size)", height: "var(--logo-size)", objectFit: "cover", borderRadius: "var(--logo-radius)" }} />
             </div>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 12, color: "var(--taxi-muted)", marginTop: 4 }}>Быстро. Надёжно. Безопасно.</div>

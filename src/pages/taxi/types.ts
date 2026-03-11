@@ -126,7 +126,7 @@ export interface PassengerStats {
   cancelledOrders: number;
 }
 
-export const LOGO_URL = "https://cdn.poehali.dev/projects/e03e7d24-4919-4d6e-81b9-d7fc9a11aa44/files/4162b8bc-c7fd-4b39-bd7c-b880e35d7c92.jpg";
+export const LOGO_URL = "https://cdn.poehali.dev/projects/e03e7d24-4919-4d6e-81b9-d7fc9a11aa44/files/198b7f25-ea21-46a6-83bd-f57a699ec42a.jpg";
 
 export const INITIAL_DRIVERS: Driver[] = [];
 
