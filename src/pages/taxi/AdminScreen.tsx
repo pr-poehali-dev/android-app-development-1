@@ -179,7 +179,11 @@ export default function AdminScreen({
   const freeOrders = orders.filter((o) => o.status === "pending");
   const inWorkOrders = orders.filter((o) => o.status === "assigned" || o.status === "waiting" || o.status === "arrived" || o.status === "inprogress");
   const activeOrders = [...freeOrders, ...inWorkOrders];
-  const onlineDrivers = drivers.filter((d) => d.status === "active" || d.status === "busy");
+  const onlineDrivers = drivers.filter((d) => {
+    if (d.status === "restricted") return false;
+    if (!d.locationUpdatedAt) return false;
+    return Date.now() - d.locationUpdatedAt < 5 * 60 * 1000;
+  });
 
   const totalUnreadChat = useMemo(() => {
     return supportMessages.filter((m) => m.fromRole !== "admin" && !m.read).length;

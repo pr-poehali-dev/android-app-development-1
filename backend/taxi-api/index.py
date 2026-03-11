@@ -234,12 +234,15 @@ def handler(event, context):
             dcrow = cur.fetchone()
             cur.execute("SELECT MAX(EXTRACT(EPOCH FROM location_updated_at)::bigint) as t FROM drivers")
             drow = cur.fetchone()
+            cur.execute("SELECT EXTRACT(EPOCH FROM updated_at)::bigint as t FROM app_settings WHERE id=1")
+            sett_row = cur.fetchone()
             active_orders = int(orow['c'])
             last_order_ts = int(orow['last_ts']) if orow['last_ts'] else 0
             last_support_ts = int(srow['t']) if srow and srow['t'] else 0
             last_dchat_id = int(dcrow['t']) if dcrow and dcrow['t'] else 0
             last_driver_loc = int(drow['t']) if drow and drow['t'] else 0
-            raw = '%d:%d:%d:%d:%d' % (active_orders, last_order_ts, last_support_ts, last_dchat_id, last_driver_loc)
+            last_settings_ts = int(sett_row['t']) if sett_row and sett_row['t'] else 0
+            raw = '%d:%d:%d:%d:%d:%d' % (active_orders, last_order_ts, last_support_ts, last_dchat_id, last_driver_loc, last_settings_ts)
             if role == 'passenger' and uid:
                 cur.execute("SELECT COUNT(*) as c FROM support_messages WHERE from_id='%s' AND from_role='admin' AND read=false" % uid)
                 my_unread = int(cur.fetchone()['c'])
@@ -394,7 +397,8 @@ def fmt_driver(r):
             'totalEarnings': float(r['total_earnings']), 'totalKm': float(r['total_km']),
             'totalHours': float(r['total_hours']),
             'lat': float(r['lat']) if r.get('lat') is not None else None,
-            'lng': float(r['lng']) if r.get('lng') is not None else None}
+            'lng': float(r['lng']) if r.get('lng') is not None else None,
+            'locationUpdatedAt': int(r['location_updated_at'].timestamp() * 1000) if r.get('location_updated_at') else None}
 
 
 def fmt_order(r):

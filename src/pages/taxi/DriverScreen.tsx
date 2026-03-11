@@ -10,7 +10,7 @@ import {
   isSubscriptionActive,
   subscriptionDaysLeft,
 } from "./types";
-import { playNotificationSound, sendPush } from "./notifications";
+import { playNotificationSound, playLoopingOrderSound, stopOrderSound, sendPush } from "./notifications";
 import api from "./api";
 
 const TARIFF_LABELS: Record<Order["tariff"], string> = {
@@ -176,7 +176,7 @@ export default function DriverScreen({
       const nearest = (inRadius.length > 0 ? inRadius : withDist).sort((a, b) => a.dist - b.dist)[0];
       if (nearest) {
         setAutoAssignOffer(nearest.order);
-        playNotificationSound("order");
+        playLoopingOrderSound();
         sendPush("Taxi", "Новый заказ!");
       }
     }
@@ -228,6 +228,7 @@ export default function DriverScreen({
   };
 
   const handleAcceptFromEta = (orderId: string, eta: number) => {
+    stopOrderSound();
     onAcceptOrder(orderId, driver.id, driver.name, eta);
     setEtaSelect(null);
     setEtaMinutes(5);
@@ -236,6 +237,7 @@ export default function DriverScreen({
   };
 
   const handleDeclineAutoAssign = () => {
+    stopOrderSound();
     if (autoAssignOffer) {
       declinedOrdersRef.current.add(autoAssignOffer.id);
     }

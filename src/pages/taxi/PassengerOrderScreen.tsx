@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import YandexMap from "@/components/YandexMap";
-import AddressInput from "@/components/AddressInput";
+import AddressInput, { shortenAddress } from "@/components/AddressInput";
 import { Order, User, AppSettings, Driver, LOGO_URL, PaymentMethod, calcOrderPrice } from "./types";
 import { playNotificationSound, sendPush } from "./notifications";
 import api from "./api";
@@ -51,6 +51,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<{from: string; text: string}[]>([]);
   const [chatInput, setChatInput] = useState("");
+  const [unreadChat, setUnreadChat] = useState(0);
   const [etaMinutes, setEtaMinutes] = useState(5);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [tips, setTips] = useState(0);
@@ -90,6 +91,32 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     }
   }, [orders, user.id]);
 
+  const autoLocatedRef = useRef(false);
+  useEffect(() => {
+    if (autoLocatedRef.current || step !== "form" || from) return;
+    autoLocatedRef.current = true;
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setFromCoords({ lat: latitude, lng: longitude });
+        try {
+          await new Promise<void>((resolve) => {
+            if (window.ymaps) window.ymaps.ready(() => resolve());
+            else resolve();
+          });
+          if (window.ymaps) {
+            const res = await window.ymaps.geocode([latitude, longitude], { results: 1 });
+            const obj = res?.geoObjects?.get(0);
+            if (obj) setFrom(shortenAddress(obj.getAddressLine()));
+          }
+        } catch { /* ignore geocode errors */ }
+      },
+      () => { /* ignore geolocation errors */ },
+      { timeout: 8000, enableHighAccuracy: true }
+    );
+  }, [step, from]);
+
   useEffect(() => {
     if (step === "found") {
       setEtaMinutes((prev) => prev || Math.floor(Math.random() * 6) + 3);
@@ -118,7 +145,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
           if (window.ymaps) {
             const res = await window.ymaps.geocode([latitude, longitude], { results: 1 });
             const obj = res?.geoObjects?.get(0);
-            if (obj) setFrom(obj.getAddressLine());
+            if (obj) setFrom(shortenAddress(obj.getAddressLine()));
             else setFrom(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
           } else {
             setFrom(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
@@ -201,13 +228,13 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
 
   const handleMapPick = async (address: string) => {
     if (pickMode === "from") {
-      setFrom(address);
+      setFrom(shortenAddress(address));
       const c = await geocodeAddress(address);
       if (c) setFromCoords(c);
     } else if (pickMode === "to") {
       if (isDelivery) setDeliveryAddress(address);
       else {
-        setTo(address);
+        setTo(shortenAddress(address));
         const c = await geocodeAddress(address);
         if (c) setToCoords(c);
       }
@@ -337,6 +364,11 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
         const incoming = newMsgs.filter((m: { from: string }) => m.from === "driver");
         if (incoming.length > 0 && prevChatCountRef.current > 0) {
           playNotificationSound("message");
+          if (!chatOpen) {
+            setUnreadChat((prev) => prev + incoming.length);
+            showToast("Сообщение от водителя", incoming[incoming.length - 1].text.slice(0, 60));
+          }
+          sendPush("Водитель", incoming[incoming.length - 1].text.slice(0, 80));
         }
       }
       prevChatCountRef.current = res.messages.length;
@@ -349,6 +381,11 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
     const interval = setInterval(loadRideChat, 3000);
     return () => clearInterval(interval);
   }, [activeOrderId, step, loadRideChat]);
+
+  const openChat = () => {
+    setChatOpen(true);
+    setUnreadChat(0);
+  };
 
   const sendChatMessage = async () => {
     if (!chatInput.trim() || !activeOrderId) return;
@@ -565,8 +602,9 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
                     <Icon name="Phone" size={20} color="#fff" />
                   </a>
                 )}
-                <button onClick={() => setChatOpen(true)} style={{ flex: 1, padding: "13px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <button onClick={() => openChat()} style={{ flex: 1, padding: "13px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, position: "relative" }}>
                   <Icon name="MessageCircle" size={16} color="var(--taxi-yellow)" /> Чат
+                  {unreadChat > 0 && <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, background: "var(--taxi-red)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700, padding: "0 4px" }}>{unreadChat}</span>}
                 </button>
                 <button onClick={() => setConfirmAction({ type: "cancel", action: handleCancel })} style={{ flex: 1, padding: "13px", background: "transparent", border: "1px solid var(--taxi-red)", borderRadius: 12, color: "var(--taxi-red)", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600 }}>
                   Отменить
@@ -628,8 +666,9 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
                     <Icon name="Phone" size={20} color="#fff" />
                   </a>
                 )}
-                <button onClick={() => setChatOpen(true)} style={{ flex: 1, padding: "13px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <button onClick={() => openChat()} style={{ flex: 1, padding: "13px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 13, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, position: "relative" }}>
                   <Icon name="MessageCircle" size={16} color="var(--taxi-yellow)" /> Написать водителю
+                  {unreadChat > 0 && <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, background: "var(--taxi-red)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700, padding: "0 4px" }}>{unreadChat}</span>}
                 </button>
               </div>
             </div>
@@ -664,8 +703,9 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
                     <Icon name="Phone" size={18} color="#fff" />
                   </a>
                 )}
-                <button onClick={() => setChatOpen(true)} style={{ flex: 1, padding: "11px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 12, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <button onClick={() => openChat()} style={{ flex: 1, padding: "11px", background: "var(--taxi-surface)", border: "1px solid var(--taxi-border)", borderRadius: 12, color: "#F0F2F5", fontSize: 12, cursor: "pointer", fontFamily: "Montserrat", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, position: "relative" }}>
                   <Icon name="MessageCircle" size={15} color="var(--taxi-yellow)" /> Чат
+                  {unreadChat > 0 && <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, background: "var(--taxi-red)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700, padding: "0 4px" }}>{unreadChat}</span>}
                 </button>
               </div>
             </div>

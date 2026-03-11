@@ -87,6 +87,7 @@ export interface Driver {
   totalHours: number;
   lat?: number | null;
   lng?: number | null;
+  locationUpdatedAt?: number | null;
 }
 
 export interface AppSettings {
@@ -125,7 +126,7 @@ export interface PassengerStats {
   cancelledOrders: number;
 }
 
-export const LOGO_URL = "https://cdn.poehali.dev/projects/e03e7d24-4919-4d6e-81b9-d7fc9a11aa44/files/73a4c75d-4bc3-4bdf-bc99-805f9c78663b.jpg";
+export const LOGO_URL = "https://cdn.poehali.dev/projects/e03e7d24-4919-4d6e-81b9-d7fc9a11aa44/files/4162b8bc-c7fd-4b39-bd7c-b880e35d7c92.jpg";
 
 export const INITIAL_DRIVERS: Driver[] = [];
 

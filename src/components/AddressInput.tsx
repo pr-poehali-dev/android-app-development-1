@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 
 declare global {
   interface Window {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ymaps: any;
   }
 }
@@ -20,6 +19,19 @@ interface Suggestion {
   displayName: string;
 }
 
+function shortenAddress(addr: string): string {
+  if (!addr) return addr;
+  let s = addr;
+  s = s.replace(/Россия,?\s*/gi, "");
+  s = s.replace(/Забайкальский край,?\s*/gi, "");
+  s = s.replace(/Забайкальский\s+край,?\s*/gi, "");
+  s = s.replace(/городской округ[^,]*,?\s*/gi, "");
+  s = s.replace(/город\s+/gi, "");
+  s = s.replace(/,\s*,/g, ",");
+  s = s.replace(/^[\s,]+/, "").replace(/[\s,]+$/, "");
+  return s;
+}
+
 export default function AddressInput({ value, onChange, placeholder, dotColor, dotRadius = 50 }: Props) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -28,21 +40,26 @@ export default function AddressInput({ value, onChange, placeholder, dotColor, d
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (!value || value.length < 3 || !window.ymaps) {
+    if (!value || value.length < 2 || !window.ymaps) {
       setSuggestions([]);
       return;
     }
     timerRef.current = setTimeout(async () => {
-      const res = await window.ymaps.suggest(value, { results: 5 }).catch(() => null);
+      const query = value.includes("Чита") ? value : `Чита, ${value}`;
+      const res = await window.ymaps.suggest(query, {
+        results: 7,
+        boundedBy: [[51.85, 113.35], [52.15, 113.65]],
+        strictBounds: true,
+      }).catch(() => null);
       if (!res) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const list: Suggestion[] = res.map((item: any) => ({
-        value: item.value,
-        displayName: item.displayName ?? item.value,
+        value: shortenAddress(item.value),
+        displayName: shortenAddress(item.displayName ?? item.value),
       }));
-      setSuggestions(list);
-      setOpen(list.length > 0);
-    }, 350);
+      const unique = list.filter((s, i, arr) => arr.findIndex(x => x.value === s.value) === i);
+      setSuggestions(unique);
+      setOpen(unique.length > 0);
+    }, 300);
   }, [value]);
 
   useEffect(() => {
@@ -78,6 +95,7 @@ export default function AddressInput({ value, onChange, placeholder, dotColor, d
           position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 100,
           background: "#1C1F2A", border: "1px solid var(--taxi-border)", borderRadius: 14,
           overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+          maxHeight: 260, overflowY: "auto",
         }}>
           {suggestions.map((s, i) => (
             <button
@@ -101,3 +119,5 @@ export default function AddressInput({ value, onChange, placeholder, dotColor, d
     </div>
   );
 }
+
+export { shortenAddress };
