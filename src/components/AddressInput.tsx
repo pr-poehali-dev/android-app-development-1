@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { shortenAddress } from "@/lib/address";
 
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ymaps: any;
   }
 }
@@ -19,19 +21,6 @@ interface Suggestion {
   displayName: string;
 }
 
-function shortenAddress(addr: string): string {
-  if (!addr) return addr;
-  let s = addr;
-  s = s.replace(/Россия,?\s*/gi, "");
-  s = s.replace(/Забайкальский край,?\s*/gi, "");
-  s = s.replace(/Забайкальский\s+край,?\s*/gi, "");
-  s = s.replace(/городской округ[^,]*,?\s*/gi, "");
-  s = s.replace(/город\s+/gi, "");
-  s = s.replace(/,\s*,/g, ",");
-  s = s.replace(/^[\s,]+/, "").replace(/[\s,]+$/, "");
-  return s;
-}
-
 export default function AddressInput({ value, onChange, placeholder, dotColor, dotRadius = 50 }: Props) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -46,12 +35,14 @@ export default function AddressInput({ value, onChange, placeholder, dotColor, d
     }
     timerRef.current = setTimeout(async () => {
       const query = value.includes("Чита") ? value : `Чита, ${value}`;
+       
       const res = await window.ymaps.suggest(query, {
         results: 7,
         boundedBy: [[51.85, 113.35], [52.15, 113.65]],
         strictBounds: true,
       }).catch(() => null);
       if (!res) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const list: Suggestion[] = res.map((item: any) => ({
         value: shortenAddress(item.value),
         displayName: shortenAddress(item.displayName ?? item.value),
@@ -119,5 +110,3 @@ export default function AddressInput({ value, onChange, placeholder, dotColor, d
     </div>
   );
 }
-
-export { shortenAddress };

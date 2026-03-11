@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import YandexMap from "@/components/YandexMap";
-import AddressInput, { shortenAddress } from "@/components/AddressInput";
+import AddressInput from "@/components/AddressInput";
+import { shortenAddress } from "@/lib/address";
 import { Order, User, AppSettings, Driver, LOGO_URL, PaymentMethod, calcOrderPrice } from "./types";
 import { playNotificationSound, sendPush } from "./notifications";
 import api from "./api";
@@ -110,9 +111,9 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
             const obj = res?.geoObjects?.get(0);
             if (obj) setFrom(shortenAddress(obj.getAddressLine()));
           }
-        } catch { /* ignore geocode errors */ }
+        } catch (_e) { void _e; }
       },
-      () => { /* ignore geolocation errors */ },
+      () => {},
       { timeout: 8000, enableHighAccuracy: true }
     );
   }, [step, from]);
@@ -373,7 +374,7 @@ export default function PassengerOrderScreen({ user, orders, settings, drivers, 
       }
       prevChatCountRef.current = res.messages.length;
     }
-  }, [activeOrderId]);
+  }, [activeOrderId, chatOpen]);
 
   useEffect(() => {
     if (!activeOrderId || step === "form" || step === "rating") return;
